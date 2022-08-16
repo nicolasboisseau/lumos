@@ -1,10 +1,15 @@
-import pytest
-import cv2
+'''
+Test 1
+'''
+
+import os
 import tempfile
+from pathlib import Path
+
+import cv2
+import pytest
 import numpy as np
 import pandas as pd
-from pathlib import Path
-import os
 
 from lumos.toolbox import load_site_image
 
@@ -12,8 +17,9 @@ from lumos.toolbox import load_site_image
 # Arrange
 @pytest.fixture
 def fake_image():
-    """ Generate a fake image and save it in temp folder
-    """
+    '''
+    Generate a fake image and save it in temp folder
+    '''
     img = np.full((1000, 1000, 1), 32768, np.uint16)
 
     fake_16_bit_image_file = tempfile.NamedTemporaryFile(
@@ -29,16 +35,23 @@ def fake_image():
 
 @pytest.fixture
 def fake_dataframe(fake_image):
-    """ generate a dataframe with the following columns ["well", "site", "filename", "fullpath"]
-    """
+    '''
+    Generate a dataframe with the following columns ["well", "site", "filename", "fullpath"]
+    '''
     image_path = Path(fake_image)
-    dict = [{"well": "A01", "site": 1, "filename": image_path.name,
-             "fullpath": image_path.parent}]
-    fake_df = pd.DataFrame.from_dict(dict, orient='columns')
+
+    data_dict = [{"well": "A01", "site": 1, "filename": image_path.name,
+                  "fullpath": image_path.parent}]
+
+    fake_df = pd.DataFrame.from_dict(data_dict, orient='columns')
+
     return fake_df
 
 
 def test_load_image(fake_dataframe, fake_image):
+    '''
+    Test that load_site_image() does load correctly an image
+    '''
     # Act
     fake_image_path = Path(fake_image)
     site_image = load_site_image(
