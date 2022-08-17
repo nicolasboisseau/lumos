@@ -35,9 +35,195 @@ Extra helper functions for lumos.
 &#39;&#39;&#39;
 
 import os
+import sys
+from pathlib import Path
+
 import cv2
+import pandas as pd
 
 from . import logger
+from .config import get_config
+
+
+def build_input_images_df(plate_input_path, selected_channels):
+    &#39;&#39;&#39;
+    Scans the input plate folder to build a table of all the available images for the selected channels.
+    It handles nested files that match the folder structure specified by the user in the configuration.
+
+            Parameters:
+                    plate_input_path (Path): A path to a plate folder.
+                    selected_channels (string list): A list of all the channels IDs to be included in the DF.
+
+            Returns:
+                    Pandas DataFrame:
+                            A database of the paths to the images of each channel, for each site of each well.
+                            Its columns are: [&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;, &#34;filename&#34;, &#34;fullpath&#34;].
+    &#39;&#39;&#39;
+
+    # Get the path to the images of the plate folder, for the targeted channels
+    # (this is just a rough selection, and it will be refined later)
+    images_full_path_list = []
+    for current_channel in selected_channels:
+
+        current_channel_images = list(
+            Path(plate_input_path).glob(
+                f&#34;./{get_config()[&#39;path_from_plate_folder_to_images&#39;]}/*{current_channel}*.tif*&#34;)
+        )
+
+        if len(current_channel_images) == 0:
+            logger.err_print(f&#34;ERROR: No images found for channel &#39;{current_channel}&#39; of this plate.&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.err_print(&#34;       Make sure that you have configured the channel IDs to be the same as they appear in your file names.&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.err_print(&#34;       Also make sure you that your folder structure matches your path-to-images configuration. &#34;
+                             + f&#34;The current configuration is: &lt;plate_folder&gt;/{get_config()[&#39;path_from_plate_folder_to_images&#39;]}&lt;images&gt;&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.error(&#34;No files found when building dataframe&#34;)
+            sys.exit(1)
+
+        if len(current_channel_images) &gt;= 50000:
+            logger.err_print(&#34;ERROR: Too many images found for this plate&#39;s channel. Make sure that you have chosen a valid plate.&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.error(&#34;Too many files found when building dataframe&#34;)
+            sys.exit(1)
+
+        images_full_path_list.extend(current_channel_images)
+
+    # Get the filenames list
+    images_full_path_list.sort()
+    images_filename_list = [str(x.name) for x in images_full_path_list]
+
+    # Get the grid patterns from config
+    nb_site_row = int(get_config()[&#39;site_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+    nb_site_col = int(get_config()[&#39;site_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
+    nb_site = nb_site_row * nb_site_col
+
+    nb_well_row = int(get_config()[&#39;well_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+    nb_well_col = int(get_config()[&#39;well_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
+    nb_well = nb_well_row * nb_well_col
+
+    if get_config()[&#39;input_file_naming_scheme&#39;] == &#39;letter_wells&#39;:
+        # Extract the metadata of the images from their name
+        try:
+            # Extract the available wells list
+            image_well_list = [x.split(&#39;_&#39;)[-2]
+                               for x in images_filename_list]
+            # Extract the available sites list
+            image_site_list = [
+                int(x.split(&#39;_&#39;)[-1].split(&#39;F&#39;)[1].split(&#39;L&#39;)[0])
+                for x in images_filename_list
+            ]
+            # Extract the channel list
+            image_channel_list = [x.split(&#34;.tif&#34;)[0][-6:]
+                                  for x in images_filename_list]
+        except IndexError:
+            logger.err_print(&#34;ERROR: File names do not follow the chosen INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                             get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.error(&#34;File names do not follow the chosen INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                         get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;)
+            sys.exit(1)
+
+        # Compute the theoretical reference well list for a standard plate
+        reference_well_list = [
+            # e.g. &#34;A01&#34;
+            l + str(col).zfill(2) for l in &#34;ABCDEFGHIJKLMNOP&#34; for col in range(1, nb_well_col+1)
+        ]
+        complete_reference_list = [
+            # e.g. [&#34;A01&#34;, 1, &#34;Z01C01&#34;] .. [&#34;P24&#34;, 6, &#34;Z01C01&#34;]
+            [w, s, c] for w in reference_well_list for s in range(1, nb_site+1) for c in selected_channels
+        ]
+
+    elif get_config()[&#39;input_file_naming_scheme&#39;] == &#39;rows_and_columns&#39;:
+        # Extract the metadata of the images from their name
+        try:
+            # Extract the available wells list
+            image_well_list = [x.split(&#39;-&#39;)[0].split(&#39;f&#39;)[0]
+                               for x in images_filename_list]
+            # Extract the available sites list
+            image_site_list = [
+                int(x.split(&#39;-&#39;)[0].split(&#39;f&#39;)[1].split(&#34;p&#34;)[0])
+                for x in images_filename_list
+            ]
+            # Extract the channel list
+            image_channel_list = [x.split(&#39;-&#39;)[1].split(&#39;sk&#39;)[0]
+                                  for x in images_filename_list]
+
+        except IndexError:
+            logger.err_print(&#34;ERROR: File names do not follow the chosen INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                             get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.error(&#34;File names do not follow the chosen INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                         get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;)
+            sys.exit(1)
+
+        # Compute the theoretical reference well list for a standard plate
+        reference_well_list = [
+            # e.g. &#34;r01c01&#34;
+            f&#34;r{str(row).zfill(2)}c{str(col).zfill(2)}&#34; for row in range(1, nb_well_row+1) for col in range(1, nb_well_col+1)
+        ]
+        complete_reference_list = [
+            # e.g. [&#34;r01c01&#34;, 1, &#34;ch1&#34;] .. [&#34;r16c24&#34;, 6, &#34;ch5&#34;]
+            [w, s, c] for w in reference_well_list for s in range(1, nb_site+1) for c in selected_channels
+        ]
+
+    else:
+        logger.err_print(&#34;ERROR: Non-valid INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                         get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;,
+                         color=&#39;bright_red&#39;)
+        logger.error(&#34;Non-valid INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                     get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;)
+        sys.exit(1)
+
+    # Zip all the data of the channel images together
+    image_data_zip = zip(
+        image_well_list,
+        image_site_list,
+        image_channel_list,
+        images_filename_list,
+        images_full_path_list,
+    )
+    # Convert the zip into dataframe
+    image_data_df = pd.DataFrame(
+        list(image_data_zip), columns=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;, &#34;filename&#34;, &#34;fullpath&#34;]
+    )
+
+    # Check that we get the expected number of images
+    expected_image_nb = nb_well * nb_site * len(selected_channels)
+    actual_image_nb = len(image_data_df)
+
+    if actual_image_nb != expected_image_nb:
+        logger.p_print(
+            &#34;The plate does not have the exact image count: expected &#34;
+            + str(expected_image_nb)
+            + &#34;, got &#34; + str(actual_image_nb)
+        )
+        logger.warning(
+            &#34;Plate doesn&#39;t have the exact image count: expected &#34;
+            + str(expected_image_nb)
+            + &#34;, got &#34; + str(actual_image_nb)
+        )
+
+    # Create the theoretical well dataframe
+    reference_data_df = pd.DataFrame(
+        complete_reference_list, columns=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;]
+    )
+
+    # Join the reference table with the real one
+    # to highlight differences
+    image_data_df_joined = reference_data_df.merge(
+        image_data_df,
+        left_on=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;],
+        right_on=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;],
+        how=&#34;left&#34;,
+    )
+
+    # Remove all images that may have been captured without being in the selected channels
+    # (this can happen when a well name is also a channel name, e.g. &#39;C01&#39;)
+    current_channels_df = image_data_df_joined[image_data_df_joined[&#39;channel&#39;].isin(
+        selected_channels)]
+
+    return current_channels_df.copy()
 
 
 def load_site_image(site, current_wells_df, source_folder):
@@ -45,7 +231,7 @@ def load_site_image(site, current_wells_df, source_folder):
     Loads a site image, for a specific channel.
 
             Parameters:
-                    site (int): The id of the site (between 1 and 6).
+                    site (int): The ID of the site to be loaded.
                     current_wells_df (DataFrame): The dataframe containing image metadata.
                     source_folder (Path): The path to the folder where the images are stored.
 
@@ -54,7 +240,6 @@ def load_site_image(site, current_wells_df, source_folder):
     &#39;&#39;&#39;
 
     for _, current_site in current_wells_df.iterrows():
-        # process field 1
         if current_site[&#34;site&#34;] == site:
             if not os.path.isfile(source_folder + &#34;/&#34; + str(current_site[&#34;filename&#34;])):
                 logger.debug(&#34;Path to site image does not exist&#34;)
@@ -78,7 +263,7 @@ def load_well_image(well, source_folder, image_format):
     They should be found inside of the working temporary directory.
 
             Parameters:
-                    well (string): The id of the well (e.g. D23).
+                    well (string): The ID of the well to be loaded.
                     source_folder (Path): The path to the folder where the images are stored.
 
             Returns:
@@ -97,6 +282,28 @@ def load_well_image(well, source_folder, image_format):
         return None
 
     return well_img
+
+
+def concatenate_images_in_grid(image_list, nb_rows, nb_columns):
+    &#39;&#39;&#39;
+    Concatenates all the images together in the specified grid pattern.
+
+            Parameters:
+                    image_list (Image/Mat list): The images to be concatenated together.
+                    nb_rows (int): The number of rows of the grid pattern.
+                    nb_columns (int): The number of columns of the grid pattern.
+
+            Returns:
+                    8-bit cv2 image
+    &#39;&#39;&#39;
+
+    rows = [
+        # Concatenate the images of each row in a horizontal stripe
+        cv2.hconcat(image_list[row*nb_columns:(row+1)*nb_columns])
+        for row in range(nb_rows)
+    ]
+    # Concatenate the rows vertically on top of each other to assemble the grid
+    return cv2.vconcat(rows)
 
 
 def draw_markers(image, color):
@@ -152,18 +359,6 @@ def draw_markers(image, color):
     end_cross_line = (center[0]+radius, center[1]-radius)
     image = cv2.line(image, start_cross_line, end_cross_line, color, thickness)
 
-    # # Draw character (cv2 does not support unicode characters)
-    # text = &#34;X&#34;
-    # image = cv2.putText(
-    #     img = image,
-    #     text = text,
-    #     org = (int(image.shape[0]/4), int(image.shape[1]*3/4)),
-    #     fontFace = cv2.FONT_HERSHEY_SIMPLEX,
-    #     fontScale = image.shape[0]/50,
-    #     color = color,
-    #     thickness = thickness,
-    # )
-
     return image</code></pre>
 </details>
 </section>
@@ -174,6 +369,245 @@ def draw_markers(image, color):
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
+<dt id="lumos.toolbox.build_input_images_df"><code class="name flex">
+<span>def <span class="ident">build_input_images_df</span></span>(<span>plate_input_path, selected_channels)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Scans the input plate folder to build a table of all the available images for the selected channels.
+It handles nested files that match the folder structure specified by the user in the configuration.</p>
+<pre><code>    Parameters:
+            plate_input_path (Path): A path to a plate folder.
+            selected_channels (string list): A list of all the channels IDs to be included in the DF.
+
+    Returns:
+            Pandas DataFrame:
+                    A database of the paths to the images of each channel, for each site of each well.
+                    Its columns are: ["well", "site", "channel", "filename", "fullpath"].
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def build_input_images_df(plate_input_path, selected_channels):
+    &#39;&#39;&#39;
+    Scans the input plate folder to build a table of all the available images for the selected channels.
+    It handles nested files that match the folder structure specified by the user in the configuration.
+
+            Parameters:
+                    plate_input_path (Path): A path to a plate folder.
+                    selected_channels (string list): A list of all the channels IDs to be included in the DF.
+
+            Returns:
+                    Pandas DataFrame:
+                            A database of the paths to the images of each channel, for each site of each well.
+                            Its columns are: [&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;, &#34;filename&#34;, &#34;fullpath&#34;].
+    &#39;&#39;&#39;
+
+    # Get the path to the images of the plate folder, for the targeted channels
+    # (this is just a rough selection, and it will be refined later)
+    images_full_path_list = []
+    for current_channel in selected_channels:
+
+        current_channel_images = list(
+            Path(plate_input_path).glob(
+                f&#34;./{get_config()[&#39;path_from_plate_folder_to_images&#39;]}/*{current_channel}*.tif*&#34;)
+        )
+
+        if len(current_channel_images) == 0:
+            logger.err_print(f&#34;ERROR: No images found for channel &#39;{current_channel}&#39; of this plate.&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.err_print(&#34;       Make sure that you have configured the channel IDs to be the same as they appear in your file names.&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.err_print(&#34;       Also make sure you that your folder structure matches your path-to-images configuration. &#34;
+                             + f&#34;The current configuration is: &lt;plate_folder&gt;/{get_config()[&#39;path_from_plate_folder_to_images&#39;]}&lt;images&gt;&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.error(&#34;No files found when building dataframe&#34;)
+            sys.exit(1)
+
+        if len(current_channel_images) &gt;= 50000:
+            logger.err_print(&#34;ERROR: Too many images found for this plate&#39;s channel. Make sure that you have chosen a valid plate.&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.error(&#34;Too many files found when building dataframe&#34;)
+            sys.exit(1)
+
+        images_full_path_list.extend(current_channel_images)
+
+    # Get the filenames list
+    images_full_path_list.sort()
+    images_filename_list = [str(x.name) for x in images_full_path_list]
+
+    # Get the grid patterns from config
+    nb_site_row = int(get_config()[&#39;site_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+    nb_site_col = int(get_config()[&#39;site_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
+    nb_site = nb_site_row * nb_site_col
+
+    nb_well_row = int(get_config()[&#39;well_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+    nb_well_col = int(get_config()[&#39;well_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
+    nb_well = nb_well_row * nb_well_col
+
+    if get_config()[&#39;input_file_naming_scheme&#39;] == &#39;letter_wells&#39;:
+        # Extract the metadata of the images from their name
+        try:
+            # Extract the available wells list
+            image_well_list = [x.split(&#39;_&#39;)[-2]
+                               for x in images_filename_list]
+            # Extract the available sites list
+            image_site_list = [
+                int(x.split(&#39;_&#39;)[-1].split(&#39;F&#39;)[1].split(&#39;L&#39;)[0])
+                for x in images_filename_list
+            ]
+            # Extract the channel list
+            image_channel_list = [x.split(&#34;.tif&#34;)[0][-6:]
+                                  for x in images_filename_list]
+        except IndexError:
+            logger.err_print(&#34;ERROR: File names do not follow the chosen INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                             get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.error(&#34;File names do not follow the chosen INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                         get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;)
+            sys.exit(1)
+
+        # Compute the theoretical reference well list for a standard plate
+        reference_well_list = [
+            # e.g. &#34;A01&#34;
+            l + str(col).zfill(2) for l in &#34;ABCDEFGHIJKLMNOP&#34; for col in range(1, nb_well_col+1)
+        ]
+        complete_reference_list = [
+            # e.g. [&#34;A01&#34;, 1, &#34;Z01C01&#34;] .. [&#34;P24&#34;, 6, &#34;Z01C01&#34;]
+            [w, s, c] for w in reference_well_list for s in range(1, nb_site+1) for c in selected_channels
+        ]
+
+    elif get_config()[&#39;input_file_naming_scheme&#39;] == &#39;rows_and_columns&#39;:
+        # Extract the metadata of the images from their name
+        try:
+            # Extract the available wells list
+            image_well_list = [x.split(&#39;-&#39;)[0].split(&#39;f&#39;)[0]
+                               for x in images_filename_list]
+            # Extract the available sites list
+            image_site_list = [
+                int(x.split(&#39;-&#39;)[0].split(&#39;f&#39;)[1].split(&#34;p&#34;)[0])
+                for x in images_filename_list
+            ]
+            # Extract the channel list
+            image_channel_list = [x.split(&#39;-&#39;)[1].split(&#39;sk&#39;)[0]
+                                  for x in images_filename_list]
+
+        except IndexError:
+            logger.err_print(&#34;ERROR: File names do not follow the chosen INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                             get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;,
+                             color=&#39;bright_red&#39;)
+            logger.error(&#34;File names do not follow the chosen INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                         get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;)
+            sys.exit(1)
+
+        # Compute the theoretical reference well list for a standard plate
+        reference_well_list = [
+            # e.g. &#34;r01c01&#34;
+            f&#34;r{str(row).zfill(2)}c{str(col).zfill(2)}&#34; for row in range(1, nb_well_row+1) for col in range(1, nb_well_col+1)
+        ]
+        complete_reference_list = [
+            # e.g. [&#34;r01c01&#34;, 1, &#34;ch1&#34;] .. [&#34;r16c24&#34;, 6, &#34;ch5&#34;]
+            [w, s, c] for w in reference_well_list for s in range(1, nb_site+1) for c in selected_channels
+        ]
+
+    else:
+        logger.err_print(&#34;ERROR: Non-valid INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                         get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;,
+                         color=&#39;bright_red&#39;)
+        logger.error(&#34;Non-valid INPUT_FILE_NAMING_SCHEME &#39;&#34; +
+                     get_config()[&#39;input_file_naming_scheme&#39;]+&#34;&#39;&#34;)
+        sys.exit(1)
+
+    # Zip all the data of the channel images together
+    image_data_zip = zip(
+        image_well_list,
+        image_site_list,
+        image_channel_list,
+        images_filename_list,
+        images_full_path_list,
+    )
+    # Convert the zip into dataframe
+    image_data_df = pd.DataFrame(
+        list(image_data_zip), columns=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;, &#34;filename&#34;, &#34;fullpath&#34;]
+    )
+
+    # Check that we get the expected number of images
+    expected_image_nb = nb_well * nb_site * len(selected_channels)
+    actual_image_nb = len(image_data_df)
+
+    if actual_image_nb != expected_image_nb:
+        logger.p_print(
+            &#34;The plate does not have the exact image count: expected &#34;
+            + str(expected_image_nb)
+            + &#34;, got &#34; + str(actual_image_nb)
+        )
+        logger.warning(
+            &#34;Plate doesn&#39;t have the exact image count: expected &#34;
+            + str(expected_image_nb)
+            + &#34;, got &#34; + str(actual_image_nb)
+        )
+
+    # Create the theoretical well dataframe
+    reference_data_df = pd.DataFrame(
+        complete_reference_list, columns=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;]
+    )
+
+    # Join the reference table with the real one
+    # to highlight differences
+    image_data_df_joined = reference_data_df.merge(
+        image_data_df,
+        left_on=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;],
+        right_on=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;],
+        how=&#34;left&#34;,
+    )
+
+    # Remove all images that may have been captured without being in the selected channels
+    # (this can happen when a well name is also a channel name, e.g. &#39;C01&#39;)
+    current_channels_df = image_data_df_joined[image_data_df_joined[&#39;channel&#39;].isin(
+        selected_channels)]
+
+    return current_channels_df.copy()</code></pre>
+</details>
+</dd>
+<dt id="lumos.toolbox.concatenate_images_in_grid"><code class="name flex">
+<span>def <span class="ident">concatenate_images_in_grid</span></span>(<span>image_list, nb_rows, nb_columns)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Concatenates all the images together in the specified grid pattern.</p>
+<pre><code>    Parameters:
+            image_list (Image/Mat list): The images to be concatenated together.
+            nb_rows (int): The number of rows of the grid pattern.
+            nb_columns (int): The number of columns of the grid pattern.
+
+    Returns:
+            8-bit cv2 image
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def concatenate_images_in_grid(image_list, nb_rows, nb_columns):
+    &#39;&#39;&#39;
+    Concatenates all the images together in the specified grid pattern.
+
+            Parameters:
+                    image_list (Image/Mat list): The images to be concatenated together.
+                    nb_rows (int): The number of rows of the grid pattern.
+                    nb_columns (int): The number of columns of the grid pattern.
+
+            Returns:
+                    8-bit cv2 image
+    &#39;&#39;&#39;
+
+    rows = [
+        # Concatenate the images of each row in a horizontal stripe
+        cv2.hconcat(image_list[row*nb_columns:(row+1)*nb_columns])
+        for row in range(nb_rows)
+    ]
+    # Concatenate the rows vertically on top of each other to assemble the grid
+    return cv2.vconcat(rows)</code></pre>
+</details>
+</dd>
 <dt id="lumos.toolbox.draw_markers"><code class="name flex">
 <span>def <span class="ident">draw_markers</span></span>(<span>image, color)</span>
 </code></dt>
@@ -243,18 +677,6 @@ def draw_markers(image, color):
     end_cross_line = (center[0]+radius, center[1]-radius)
     image = cv2.line(image, start_cross_line, end_cross_line, color, thickness)
 
-    # # Draw character (cv2 does not support unicode characters)
-    # text = &#34;X&#34;
-    # image = cv2.putText(
-    #     img = image,
-    #     text = text,
-    #     org = (int(image.shape[0]/4), int(image.shape[1]*3/4)),
-    #     fontFace = cv2.FONT_HERSHEY_SIMPLEX,
-    #     fontScale = image.shape[0]/50,
-    #     color = color,
-    #     thickness = thickness,
-    # )
-
     return image</code></pre>
 </details>
 </dd>
@@ -264,7 +686,7 @@ def draw_markers(image, color):
 <dd>
 <div class="desc"><p>Loads a site image, for a specific channel.</p>
 <pre><code>    Parameters:
-            site (int): The id of the site (between 1 and 6).
+            site (int): The ID of the site to be loaded.
             current_wells_df (DataFrame): The dataframe containing image metadata.
             source_folder (Path): The path to the folder where the images are stored.
 
@@ -280,7 +702,7 @@ def draw_markers(image, color):
     Loads a site image, for a specific channel.
 
             Parameters:
-                    site (int): The id of the site (between 1 and 6).
+                    site (int): The ID of the site to be loaded.
                     current_wells_df (DataFrame): The dataframe containing image metadata.
                     source_folder (Path): The path to the folder where the images are stored.
 
@@ -289,7 +711,6 @@ def draw_markers(image, color):
     &#39;&#39;&#39;
 
     for _, current_site in current_wells_df.iterrows():
-        # process field 1
         if current_site[&#34;site&#34;] == site:
             if not os.path.isfile(source_folder + &#34;/&#34; + str(current_site[&#34;filename&#34;])):
                 logger.debug(&#34;Path to site image does not exist&#34;)
@@ -314,7 +735,7 @@ def draw_markers(image, color):
 Well images are temporary images made by lumos for a specific channel.
 They should be found inside of the working temporary directory.</p>
 <pre><code>    Parameters:
-            well (string): The id of the well (e.g. D23).
+            well (string): The ID of the well to be loaded.
             source_folder (Path): The path to the folder where the images are stored.
 
     Returns:
@@ -331,7 +752,7 @@ They should be found inside of the working temporary directory.</p>
     They should be found inside of the working temporary directory.
 
             Parameters:
-                    well (string): The id of the well (e.g. D23).
+                    well (string): The ID of the well to be loaded.
                     source_folder (Path): The path to the folder where the images are stored.
 
             Returns:
@@ -370,6 +791,8 @@ They should be found inside of the working temporary directory.</p>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
+<li><code><a title="lumos.toolbox.build_input_images_df" href="#lumos.toolbox.build_input_images_df">build_input_images_df</a></code></li>
+<li><code><a title="lumos.toolbox.concatenate_images_in_grid" href="#lumos.toolbox.concatenate_images_in_grid">concatenate_images_in_grid</a></code></li>
 <li><code><a title="lumos.toolbox.draw_markers" href="#lumos.toolbox.draw_markers">draw_markers</a></code></li>
 <li><code><a title="lumos.toolbox.load_site_image" href="#lumos.toolbox.load_site_image">load_site_image</a></code></li>
 <li><code><a title="lumos.toolbox.load_well_image" href="#lumos.toolbox.load_well_image">load_well_image</a></code></li>

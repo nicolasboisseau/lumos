@@ -48,7 +48,7 @@ import pandas as pd
 
 from . import logger
 from . import toolbox
-from . import parameters
+from .config import get_config
 
 
 def create_temp_and_output_folders(temp_path, output_path, scope, plate_name, style):
@@ -72,7 +72,7 @@ def create_temp_and_output_folders(temp_path, output_path, scope, plate_name, st
     # folder before they are concatenated for final output.
     if scope == &#39;plate&#39;:
         # Create a Temp folder
-        new_folder = temp_path + &#34;/tmpgen-&#34; + plate_name + &#34;picasso&#34;
+        new_folder = temp_path + &#34;/lumos-tmpgen-&#34; + plate_name + &#34;-picasso&#34;
         # Remove folder if existing
         shutil.rmtree(new_folder, ignore_errors=True)
         # Create the temporary directory structure to work on wells
@@ -95,116 +95,8 @@ def create_temp_and_output_folders(temp_path, output_path, scope, plate_name, st
     return new_folder
 
 
-def get_images_full_path(selected_channels, plate_input_path):
-    &#39;&#39;&#39;
-    Finds all the paths to all the channels&#39; images from the input folder
-
-            Parameters:
-                    selected_channels (string list): A list of all the channels IDs to be loaded.
-                    plate_input_path (Path): The path to the folder where the input images are stored.
-
-            Returns:
-                    Path list: A list of all the paths to all images of each channels
-    &#39;&#39;&#39;
-
-    # Get the files from the plate folder, for the targeted channel
-    images_full_path_list = []
-    for channel in selected_channels:
-        current_channel_images_full_path_list = list(
-            Path(plate_input_path).glob(&#34;*&#34; + channel + &#34;.tif&#34;)
-        )
-        images_full_path_list.extend(current_channel_images_full_path_list)
-
-    # Check that we get expected images for a 384 well image
-    try:
-        assert len(images_full_path_list) == 2304 * 5
-    except AssertionError:
-        print(
-            &#34;The plate does not have the exact image count: expected &#34; +
-            str(2304 * 5) + &#34;, got &#34;
-            + str(len(images_full_path_list)),
-        )
-
-    return images_full_path_list
-
-
-def build_robustized_plate_dataframe(images_full_path_list):
-    &#39;&#39;&#39;
-    Scans the input list of Paths to map it to the expected plate structure.
-    Missing images or wells must be taken into account in the final render.
-
-            Parameters:
-                    images_full_path_list (Path list): A list of all the paths to all the images to be included in the render.
-
-            Returns:
-                    Pandas DataFrame:
-                            A database of all the image paths to each channel, of each site, of each well.
-                            Its columns are: [&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;, &#34;filename&#34;, &#34;fullpath&#34;].
-    &#39;&#39;&#39;
-
-    # Get the filenames list
-    images_full_path_list.sort()
-    images_filename_list = [str(x.name) for x in images_full_path_list]
-
-    # Get the well list
-    image_well_list = [x.split(&#34;_&#34;)[1].split(&#34;_T&#34;)[0]
-                       for x in images_filename_list]
-
-    # Get the siteid list (sitesid from 1 to 6)
-    image_site_list = [
-        x.split(&#34;_T0001F&#34;)[1].split(&#34;L&#34;)[0] for x in images_filename_list
-    ]
-    image_site_list_int = [int(x) for x in image_site_list]
-
-    # Get the channel id list (channel id from 1 to 5)
-    image_channel_list = [x.split(&#34;.ti&#34;)[0][-2:] for x in images_filename_list]
-    image_channel_list_int = [int(x) for x in image_channel_list]
-
-    # Zip all in a data structure
-    image_data_zip = zip(
-        image_well_list,
-        image_site_list_int,
-        image_channel_list_int,
-        images_filename_list,
-        images_full_path_list,
-    )
-
-    # Convert the zip into dataframe
-    data_df = pd.DataFrame(
-        list(image_data_zip),
-        columns=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;, &#34;filename&#34;, &#34;fullpath&#34;],
-    )
-
-    # Get the theoretical well list for 384 well plate
-    well_theoretical_list = [
-        l + str(r).zfill(2) for l in &#34;ABCDEFGHIJKLMNOP&#34; for r in range(1, 25)
-    ]
-    well_channel_theoretical_list = [
-        [w, s, c] for w in well_theoretical_list for s in range(1, 7) for c in range(1, 6)
-    ]
-
-    # Create the theoretical well dataframe
-    theoretical_data_df = pd.DataFrame(
-        well_channel_theoretical_list, columns=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;]
-    )
-
-    # Join the real wells with the theoretical ones
-    theoretical_data_df_joined = theoretical_data_df.merge(
-        data_df,
-        left_on=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;],
-        right_on=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;],
-        how=&#34;left&#34;,
-    )
-
-    # Log if there is a delta between theory and actual plate wells
-    delta = set(well_theoretical_list) - set(image_well_list)
-    logger.info(&#34;Well Delta &#34; + str(delta))
-
-    return theoretical_data_df_joined
-
-
 def colorizer(
-    img_channels_fullpath,
+    site_df,
     rescale_ratio,
     style,
     max_multiply_coef=1,
@@ -214,7 +106,7 @@ def colorizer(
     Merges input images from different channels into one RGB image.
 
             Parameters:
-                    img_channels_fullpath (Path list): The list of paths to the channels&#39; images (in proper order [C01,C02,C03,C04,C05]).
+                    site_df (DataFrame): The table of all the image-info for the current site.
                     rescale_ratio (float): The ratio used to rescale the image before generation.
                     style (string): The name of the style being used to generate the colorized image.
                     max_multiply_coef (int): Max multiplication factor in case of random coefficient generation.
@@ -224,74 +116,96 @@ def colorizer(
                     8-bit cv2 image
     &#39;&#39;&#39;
 
+    # Reset the index of each channel entry
+    site_df.reset_index(inplace=True)
+
     # For each channel image of the site:
     # Load images from path list + resize + convert to 8bit
-    np_image_channels_array = []
-    for current_image in img_channels_fullpath:
-        # Load image
-        img16 = cv2.imread(str(current_image), -1)
+    image_channels_array = []
+    for _, current_channel in site_df.iterrows():
         try:
-            assert img16.shape != (0, 0)
+            # Load image
+            img = cv2.imread(str(current_channel[&#39;fullpath&#39;]), -1)
+            # Check that the image loaded successfully
+            assert img.shape != (0, 0)
+            # Resize image according to rescale ratio
+            img = cv2.resize(
+                src=img,
+                dsize=None,
+                fx=rescale_ratio,
+                fy=rescale_ratio,
+                interpolation=cv2.INTER_CUBIC,
+            )
+            # Convert image to 8bit
+            img = (img / 256).astype(&#34;uint8&#34;)
         except:
+            logger.warning(&#34;Missing or corrupted image &#34; +
+                           str(current_channel[&#39;fullpath&#39;]))
+
             # Create blank file if the image can&#39;t be loaded
-            img16 = np.full(shape=(1000, 1000, 1),
-                            fill_value=0, dtype=np.uint16)
-            logger.warning(&#34;Missing or corrupted image &#34; + str(current_image))
+            height = int(get_config()[&#39;image_dimensions&#39;].split(
+                &#39;x&#39;, maxsplit=1)[0])
+            width = int(get_config()[&#39;image_dimensions&#39;].rsplit(
+                &#39;x&#39;, maxsplit=1)[-1])
+            img = np.full(shape=(height, width, 1),
+                          fill_value=0,
+                          dtype=np.uint8)
+            img = cv2.resize(
+                src=img,
+                dsize=None,
+                fx=rescale_ratio,
+                fy=rescale_ratio,
+                interpolation=cv2.INTER_CUBIC,
+            )
 
-        # Resize image according to rescale ratio
-        img16 = cv2.resize(
-            src=img16,
-            dsize=None,
-            fx=rescale_ratio,
-            fy=rescale_ratio,
-            interpolation=cv2.INTER_CUBIC,
-        )
-
-        # Convert image to 8bit
-        img8 = (img16 / 256).astype(&#34;uint8&#34;)
-        np_image_channels_array.append(img8)
+        image_channels_array.append(img)
 
     # Perform merging, according to the style
     if style == &#39;classic&#39;:
+
         # Initialize RGB channels to zeros
-        red_channel = np.zeros(np_image_channels_array[0].shape)
-        green_channel = np.zeros(np_image_channels_array[0].shape)
-        blue_channel = np.zeros(np_image_channels_array[0].shape)
+        site_shape = image_channels_array[0].shape
+        red_channel = np.zeros(site_shape)
+        green_channel = np.zeros(site_shape)
+        blue_channel = np.zeros(site_shape)
 
-        # Get the current style&#39;s contrast coefficients
-        contrast_coef = parameters.classic_style_parameters[&#39;contrast&#39;]
         # Add contrast to each layer according to coefficients
-        for idx in range(5):
-            contrast = contrast_coef[idx]
-            alpha_c = float(131 * (contrast + 127)) / (127 * (131 - contrast))
-            gamma_c = 127*(1-alpha_c)
-            np_image_channels_array[idx] = cv2.addWeighted(
-                np_image_channels_array[idx], alpha_c, np_image_channels_array[idx], 0, gamma_c)
+        for idx, current_channel in site_df.iterrows():
+            contrast_coef = get_config()[&#39;channel_info&#39;][current_channel[&#39;channel&#39;]
+                                                         ][&#39;cp_contrast&#39;]
 
-        # Get the current style&#39;s intensity coefficients
-        intensity_coef = parameters.classic_style_parameters[&#39;intensity&#39;]
-        # Multiply the intensity of the channels using input coefs
-        for idx, image in enumerate(np_image_channels_array):
+            alpha_c = float(131 * (contrast_coef + 127)) / \
+                (127 * (131 - contrast_coef))
+            gamma_c = 127*(1-alpha_c)
+
+            image_channels_array[idx] = cv2.addWeighted(
+                image_channels_array[idx], alpha_c, image_channels_array[idx], 0, gamma_c)
+
+        # Multiply the intensity of the channels by coefs
+        for idx, current_channel in site_df.iterrows():
+            intensity_coef = get_config()[&#39;channel_info&#39;][current_channel[&#39;channel&#39;]
+                                                          ][&#39;cp_intensity&#39;]
+
             # Create a mask to check when value will overflow
-            mask = (image &gt; (255 / intensity_coef[idx])
-                    ) if intensity_coef[idx] != 0 else False
+            mask = (image_channels_array[idx] &gt; (255 / intensity_coef)
+                    ) if intensity_coef != 0 else False
+
             # Clip the result to be in [0;255] if overflow
-            np_image_channels_array[idx] = np.where(
+            image_channels_array[idx] = np.where(
                 mask,
                 255,
-                image * intensity_coef[idx])
+                image_channels_array[idx] * intensity_coef)
 
         # Combine the images according to their RGB coefficients
-        for idx, tuned_channel_image in enumerate(np_image_channels_array):
+        for idx, current_channel in site_df.iterrows():
+            rgb_coef = get_config()[
+                &#39;channel_info&#39;][current_channel[&#39;channel&#39;]][&#39;rgb&#39;]
             red_channel = red_channel + \
-                (tuned_channel_image / 255 *
-                 parameters.cellpainting_channels_info[idx][3][0])
+                (image_channels_array[idx] / 255 * rgb_coef[0])
             green_channel = green_channel + \
-                (tuned_channel_image / 255 *
-                 parameters.cellpainting_channels_info[idx][3][1])
+                (image_channels_array[idx] / 255 * rgb_coef[1])
             blue_channel = blue_channel + \
-                (tuned_channel_image / 255 *
-                 parameters.cellpainting_channels_info[idx][3][2])
+                (image_channels_array[idx] / 255 * rgb_coef[2])
 
         # Merge the Blue, Green and Red channels to form the final image
         merged_img = cv2.merge(
@@ -301,9 +215,9 @@ def colorizer(
     else:
 
         # Get the current style&#39;s parameters
-        intensity_coef = parameters.fingerprint_style_dict[style][0]
-        channel_order = parameters.fingerprint_style_dict[style][1]
-        target_rgb = parameters.fingerprint_style_dict[style][2]
+        intensity_coef = get_config()[&#39;fingerprint_style_dict&#39;][style][0]
+        channel_order = get_config()[&#39;fingerprint_style_dict&#39;][style][1]
+        target_rgb = get_config()[&#39;fingerprint_style_dict&#39;][style][2]
 
         # Randomly initiate coefficients for each channel if they are missing
         if len(intensity_coef) == 0 and len(channel_order) == 0 and len(target_rgb) == 0:
@@ -315,36 +229,47 @@ def colorizer(
             random.shuffle(target_rgb)
 
         # Multiply the intensity of the channels using input coefs
-        np_image_array_adjusted = []
-        # TODO: adapt for less than 5 selected channels?
+        image_array_adjusted = []
         for index, current_coef_mult in enumerate(intensity_coef):
-            np_image_array_adjusted.append(
-                np_image_channels_array[index] * current_coef_mult)
-        np_image_channels_array = np_image_array_adjusted
+            image_array_adjusted.append(
+                image_channels_array[index] * current_coef_mult)
+        image_channels_array = image_array_adjusted
 
         # Merge 2 extra channels each on 1 rgb channel
-        np_image_channels_array[target_rgb[0]] = (
-            np_image_channels_array[target_rgb[0]] +
-            np_image_channels_array[channel_order[3]]
+        image_channels_array[target_rgb[0]] = (
+            image_channels_array[target_rgb[0]] +
+            image_channels_array[channel_order[3]]
         )
-        np_image_channels_array[target_rgb[1]] = (
-            np_image_channels_array[target_rgb[1]] +
-            np_image_channels_array[channel_order[4]]
+        image_channels_array[target_rgb[1]] = (
+            image_channels_array[target_rgb[1]] +
+            image_channels_array[channel_order[4]]
         )
 
         # Merge the 3 BGR channels into one color image
         merged_img = cv2.merge(
             (
-                np_image_channels_array[channel_order[0]],
-                np_image_channels_array[channel_order[1]],
-                np_image_channels_array[channel_order[2]],
+                image_channels_array[channel_order[0]],
+                image_channels_array[channel_order[1]],
+                image_channels_array[channel_order[2]],
             )
         )
 
     # Add fingerprint id on image
     if display_fingerprint:
-        text = str(intensity_coef) + str(channel_order) + str(
-            target_rgb) if style != &#39;classic&#39; else str(parameters.classic_style_parameters)
+        # Build the fingerprint text to display
+        if style != &#39;classic&#39;:
+            text = str(intensity_coef) + str(channel_order) + str(
+                target_rgb)
+        else:
+            intensities = [x.get(&#39;cp_intensity&#39;)
+                           for x in get_config()[&#39;channel_info&#39;].values()]
+            contrasts = [x.get(&#39;cp_contrast&#39;)
+                         for x in get_config()[&#39;channel_info&#39;].values()]
+            filtered_intensities = list(filter(None, intensities))
+            filtered_contrasts = list(filter(None, contrasts))
+            text = str(filtered_intensities) + &#39; - &#39; + str(filtered_contrasts)
+
+        # Add text to image
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(
             merged_img,
@@ -391,33 +316,28 @@ def generate_multiplexed_well_images(
 
     # Define the rescale ratio based on the scope
     if scope == &#39;wells&#39;:
-        rescale_ratio = parameters.rescale_ratio_picasso_wells
+        rescale_ratio = get_config()[&#39;rescale_ratio_cp_wells&#39;]
     elif scope == &#39;plate&#39;:
-        rescale_ratio = parameters.rescale_ratio_picasso_plate
+        rescale_ratio = get_config()[&#39;rescale_ratio_cp_plate&#39;]
     else:
         rescale_ratio = 1
 
     # Multiplex all well/site channels into 1 well/site 8bit colored image
-    wellprogressbar = tqdm(well_list, unit=&#34;wells&#34;, leave=False)
-    for current_well in wellprogressbar:
+    well_progressbar = tqdm(well_list, unit=&#34;wells&#34;, leave=False, disable=not logger.ENABLED)
+    for current_well in well_progressbar:
         # For each well, generate the multiplexed images of its 6 sites
         current_well_sites_multiplexed_image_list = []
-        for current_site in range(1, 7):
+        for current_site in range(1, data_df[&#34;site&#34;].max()+1):
 
             # Get the image path list for the channels of the site, in the correct order
-            current_sites_df = data_df[
+            current_site_df = data_df[
                 ((data_df[&#34;well&#34;] == current_well) &amp;
                  (data_df[&#34;site&#34;] == current_site))
             ]
-            current_sites_df_ordered = current_sites_df.sort_values(
-                by=&#34;channel&#34;, ascending=True
-            )
-            channel_images_path = \
-                current_sites_df_ordered[&#34;fullpath&#34;].to_list()
 
             # Generate the multiplexed image of the current site
             multiplexed_site_image = colorizer(
-                img_channels_fullpath=channel_images_path,
+                site_df=current_site_df.copy(),
                 rescale_ratio=rescale_ratio,
                 max_multiply_coef=8,
                 style=style,
@@ -438,14 +358,18 @@ def generate_multiplexed_well_images(
                     multiplexed_site_image)
 
         if scope in (&#39;plate&#39;, &#39;wells&#39;):
+
             # Concatenate the site images into one well image
-            sites_row1 = cv2.hconcat(
-                current_well_sites_multiplexed_image_list[:3]
+            nb_site_row = int(
+                get_config()[&#39;site_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+            nb_site_col = int(
+                get_config()[&#39;site_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
+
+            current_well_image = toolbox.concatenate_images_in_grid(
+                current_well_sites_multiplexed_image_list,
+                nb_site_row,
+                nb_site_col,
             )
-            sites_row2 = cv2.hconcat(
-                current_well_sites_multiplexed_image_list[3:]
-            )
-            current_well_image = cv2.vconcat([sites_row1, sites_row2])
 
             # Add fingerprint on image
             if display_well_details:
@@ -454,8 +378,10 @@ def generate_multiplexed_well_images(
                 text = current_well
                 if platemap_path is not None:
                     # If the platemap is provided, extract all required columns
-                    pm_well_column = parameters.platemap_columns[&#39;well_column_name&#39;]
-                    pm_id_column = parameters.platemap_columns[&#39;id_column_name&#39;]
+                    pm_well_column = get_config(
+                    )[&#39;platemap_columns&#39;][&#39;well_column_name&#39;]
+                    pm_id_column = get_config(
+                    )[&#39;platemap_columns&#39;][&#39;id_column_name&#39;]
 
                     platemap_df = pd.read_csv(platemap_path,
                                               sep=&#39;\t&#39;,
@@ -528,28 +454,24 @@ def concatenate_well_images(well_list, temp_folder_path, output_format):
     print(&#34;Load well images in memory..&#34;)
     logger.info(&#34;Load well images in memory..&#34;)
 
-    image_well_data = []
+    well_images = []
     for current_well in well_list:
         well_image = toolbox.load_well_image(
             current_well,
             temp_folder_path + &#34;/wells&#34;,
             image_format=output_format,
         )
-        image_well_data.append(well_image)
+        well_images.append(well_image)
 
     # Concatenate all the well images into horizontal stripes (1 per row)
     logger.info(&#34;Concatenate images into a plate..&#34;)
 
-    image_row_data = []
-    for current_plate_row in range(1, 17):
-        # Concatenate horizontally and vertically
-        well_start_id = ((current_plate_row - 1) * 24) + 0
-        well_end_id = current_plate_row * 24
-        sites_row = cv2.hconcat(image_well_data[well_start_id:well_end_id])
-        image_row_data.append(sites_row)
+    # Concatenate all the well images into one plate image
+    nb_well_row = int(get_config()[&#39;well_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+    nb_well_col = int(get_config()[&#39;well_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
 
-    # Concatenate all the stripes into 1 image
-    plate_image = cv2.vconcat(image_row_data)
+    plate_image = toolbox.concatenate_images_in_grid(
+        well_images, nb_well_row, nb_well_col)
 
     return plate_image
 
@@ -585,23 +507,20 @@ def picasso_generate_plate_image(
 
             Returns:
                     8 bit cv2 image(s):
-                            If the scope is &#39;wells&#39;, then all colorized well images are outputed to the output folder.
+                            If the scope is &#39;wells&#39;, then all colorized well images are outputted to the output folder.
                             If the scope is &#39;plate&#39;, then the well images are concatenated into one image of the whole
-                            plate before being outputed to the output folder.
+                            plate before being outputted to the output folder.
     &#39;&#39;&#39;
 
     created_folder = create_temp_and_output_folders(
         temp_folder_path, output_path, scope, plate_name, style)
 
-    # Get the list of all paths for each channel image
-    images_full_path_list = get_images_full_path(
-        selected_channels=[&#34;C01&#34;, &#34;C02&#34;, &#34;C03&#34;, &#34;C04&#34;, &#34;C05&#34;],
-        plate_input_path=source_path,
-    )
+    channels_to_include = get_config()[&#39;cp_channels_to_use&#39;] \
+        if style == &#39;classic&#39; else list(get_config()[&#39;channel_info&#39;].keys())[:5]
 
-    # Build a database of the theorical plate
-    # TODO: adapt for less than 5 selected channels?
-    data_df = build_robustized_plate_dataframe(images_full_path_list)
+    # Build a Table of the available images of the plate
+    data_df = toolbox.build_input_images_df(
+        source_path, channels_to_include)
 
     # Get the list of wells to be rendered
     well_list = sorted(data_df[&#34;well&#34;].unique())
@@ -609,9 +528,9 @@ def picasso_generate_plate_image(
     # Handle the single-well request
     if single_well and single_well not in well_list:
         logger.error(&#34;Single-well parameter not a valid well&#34;)
-        print(os.linesep, &#34;ERROR:&#34;, single_well,
-              &#34;is not a valid well.&#34;, os.linesep)
-        sys.exit()
+        logger.err_print(f&#34;ERROR: {single_well} is not a valid well.&#34;,
+                         color=&#39;bright_red&#39;)
+        sys.exit(1)
     elif single_well:
         # Override the list of wells to be rendered
         # with the single well
@@ -632,6 +551,7 @@ def picasso_generate_plate_image(
 
     if scope in (&#39;sites&#39;, &#39;wells&#39;):
         print(f&#34; -&gt; Saved {scope} images in {output_path}&#34;)
+
     elif scope == &#39;plate&#39;:
         # Concatenate well images into a plate image
         plate_image = concatenate_well_images(
@@ -646,7 +566,7 @@ def picasso_generate_plate_image(
         print(&#34; -&gt; Generated image of size:&#34;, plate_image.shape)
         print(&#34; -&gt; Saved as &#34;, plate_image_path)
 
-        # Purge the temp files
+        # Purge the temp files (only for plate)
         logger.info(&#34;Purge temporary folder&#34;)
         shutil.rmtree(created_folder, ignore_errors=True)</code></pre>
 </details>
@@ -658,106 +578,13 @@ def picasso_generate_plate_image(
 <section>
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
-<dt id="lumos.picasso.build_robustized_plate_dataframe"><code class="name flex">
-<span>def <span class="ident">build_robustized_plate_dataframe</span></span>(<span>images_full_path_list)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Scans the input list of Paths to map it to the expected plate structure.
-Missing images or wells must be taken into account in the final render.</p>
-<pre><code>    Parameters:
-            images_full_path_list (Path list): A list of all the paths to all the images to be included in the render.
-
-    Returns:
-            Pandas DataFrame:
-                    A database of all the image paths to each channel, of each site, of each well.
-                    Its columns are: ["well", "site", "channel", "filename", "fullpath"].
-</code></pre></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def build_robustized_plate_dataframe(images_full_path_list):
-    &#39;&#39;&#39;
-    Scans the input list of Paths to map it to the expected plate structure.
-    Missing images or wells must be taken into account in the final render.
-
-            Parameters:
-                    images_full_path_list (Path list): A list of all the paths to all the images to be included in the render.
-
-            Returns:
-                    Pandas DataFrame:
-                            A database of all the image paths to each channel, of each site, of each well.
-                            Its columns are: [&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;, &#34;filename&#34;, &#34;fullpath&#34;].
-    &#39;&#39;&#39;
-
-    # Get the filenames list
-    images_full_path_list.sort()
-    images_filename_list = [str(x.name) for x in images_full_path_list]
-
-    # Get the well list
-    image_well_list = [x.split(&#34;_&#34;)[1].split(&#34;_T&#34;)[0]
-                       for x in images_filename_list]
-
-    # Get the siteid list (sitesid from 1 to 6)
-    image_site_list = [
-        x.split(&#34;_T0001F&#34;)[1].split(&#34;L&#34;)[0] for x in images_filename_list
-    ]
-    image_site_list_int = [int(x) for x in image_site_list]
-
-    # Get the channel id list (channel id from 1 to 5)
-    image_channel_list = [x.split(&#34;.ti&#34;)[0][-2:] for x in images_filename_list]
-    image_channel_list_int = [int(x) for x in image_channel_list]
-
-    # Zip all in a data structure
-    image_data_zip = zip(
-        image_well_list,
-        image_site_list_int,
-        image_channel_list_int,
-        images_filename_list,
-        images_full_path_list,
-    )
-
-    # Convert the zip into dataframe
-    data_df = pd.DataFrame(
-        list(image_data_zip),
-        columns=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;, &#34;filename&#34;, &#34;fullpath&#34;],
-    )
-
-    # Get the theoretical well list for 384 well plate
-    well_theoretical_list = [
-        l + str(r).zfill(2) for l in &#34;ABCDEFGHIJKLMNOP&#34; for r in range(1, 25)
-    ]
-    well_channel_theoretical_list = [
-        [w, s, c] for w in well_theoretical_list for s in range(1, 7) for c in range(1, 6)
-    ]
-
-    # Create the theoretical well dataframe
-    theoretical_data_df = pd.DataFrame(
-        well_channel_theoretical_list, columns=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;]
-    )
-
-    # Join the real wells with the theoretical ones
-    theoretical_data_df_joined = theoretical_data_df.merge(
-        data_df,
-        left_on=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;],
-        right_on=[&#34;well&#34;, &#34;site&#34;, &#34;channel&#34;],
-        how=&#34;left&#34;,
-    )
-
-    # Log if there is a delta between theory and actual plate wells
-    delta = set(well_theoretical_list) - set(image_well_list)
-    logger.info(&#34;Well Delta &#34; + str(delta))
-
-    return theoretical_data_df_joined</code></pre>
-</details>
-</dd>
 <dt id="lumos.picasso.colorizer"><code class="name flex">
-<span>def <span class="ident">colorizer</span></span>(<span>img_channels_fullpath, rescale_ratio, style, max_multiply_coef=1, display_fingerprint=False)</span>
+<span>def <span class="ident">colorizer</span></span>(<span>site_df, rescale_ratio, style, max_multiply_coef=1, display_fingerprint=False)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Merges input images from different channels into one RGB image.</p>
 <pre><code>    Parameters:
-            img_channels_fullpath (Path list): The list of paths to the channels' images (in proper order [C01,C02,C03,C04,C05]).
+            site_df (DataFrame): The table of all the image-info for the current site.
             rescale_ratio (float): The ratio used to rescale the image before generation.
             style (string): The name of the style being used to generate the colorized image.
             max_multiply_coef (int): Max multiplication factor in case of random coefficient generation.
@@ -771,7 +598,7 @@ Missing images or wells must be taken into account in the final render.</p>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def colorizer(
-    img_channels_fullpath,
+    site_df,
     rescale_ratio,
     style,
     max_multiply_coef=1,
@@ -781,7 +608,7 @@ Missing images or wells must be taken into account in the final render.</p>
     Merges input images from different channels into one RGB image.
 
             Parameters:
-                    img_channels_fullpath (Path list): The list of paths to the channels&#39; images (in proper order [C01,C02,C03,C04,C05]).
+                    site_df (DataFrame): The table of all the image-info for the current site.
                     rescale_ratio (float): The ratio used to rescale the image before generation.
                     style (string): The name of the style being used to generate the colorized image.
                     max_multiply_coef (int): Max multiplication factor in case of random coefficient generation.
@@ -791,74 +618,96 @@ Missing images or wells must be taken into account in the final render.</p>
                     8-bit cv2 image
     &#39;&#39;&#39;
 
+    # Reset the index of each channel entry
+    site_df.reset_index(inplace=True)
+
     # For each channel image of the site:
     # Load images from path list + resize + convert to 8bit
-    np_image_channels_array = []
-    for current_image in img_channels_fullpath:
-        # Load image
-        img16 = cv2.imread(str(current_image), -1)
+    image_channels_array = []
+    for _, current_channel in site_df.iterrows():
         try:
-            assert img16.shape != (0, 0)
+            # Load image
+            img = cv2.imread(str(current_channel[&#39;fullpath&#39;]), -1)
+            # Check that the image loaded successfully
+            assert img.shape != (0, 0)
+            # Resize image according to rescale ratio
+            img = cv2.resize(
+                src=img,
+                dsize=None,
+                fx=rescale_ratio,
+                fy=rescale_ratio,
+                interpolation=cv2.INTER_CUBIC,
+            )
+            # Convert image to 8bit
+            img = (img / 256).astype(&#34;uint8&#34;)
         except:
+            logger.warning(&#34;Missing or corrupted image &#34; +
+                           str(current_channel[&#39;fullpath&#39;]))
+
             # Create blank file if the image can&#39;t be loaded
-            img16 = np.full(shape=(1000, 1000, 1),
-                            fill_value=0, dtype=np.uint16)
-            logger.warning(&#34;Missing or corrupted image &#34; + str(current_image))
+            height = int(get_config()[&#39;image_dimensions&#39;].split(
+                &#39;x&#39;, maxsplit=1)[0])
+            width = int(get_config()[&#39;image_dimensions&#39;].rsplit(
+                &#39;x&#39;, maxsplit=1)[-1])
+            img = np.full(shape=(height, width, 1),
+                          fill_value=0,
+                          dtype=np.uint8)
+            img = cv2.resize(
+                src=img,
+                dsize=None,
+                fx=rescale_ratio,
+                fy=rescale_ratio,
+                interpolation=cv2.INTER_CUBIC,
+            )
 
-        # Resize image according to rescale ratio
-        img16 = cv2.resize(
-            src=img16,
-            dsize=None,
-            fx=rescale_ratio,
-            fy=rescale_ratio,
-            interpolation=cv2.INTER_CUBIC,
-        )
-
-        # Convert image to 8bit
-        img8 = (img16 / 256).astype(&#34;uint8&#34;)
-        np_image_channels_array.append(img8)
+        image_channels_array.append(img)
 
     # Perform merging, according to the style
     if style == &#39;classic&#39;:
+
         # Initialize RGB channels to zeros
-        red_channel = np.zeros(np_image_channels_array[0].shape)
-        green_channel = np.zeros(np_image_channels_array[0].shape)
-        blue_channel = np.zeros(np_image_channels_array[0].shape)
+        site_shape = image_channels_array[0].shape
+        red_channel = np.zeros(site_shape)
+        green_channel = np.zeros(site_shape)
+        blue_channel = np.zeros(site_shape)
 
-        # Get the current style&#39;s contrast coefficients
-        contrast_coef = parameters.classic_style_parameters[&#39;contrast&#39;]
         # Add contrast to each layer according to coefficients
-        for idx in range(5):
-            contrast = contrast_coef[idx]
-            alpha_c = float(131 * (contrast + 127)) / (127 * (131 - contrast))
-            gamma_c = 127*(1-alpha_c)
-            np_image_channels_array[idx] = cv2.addWeighted(
-                np_image_channels_array[idx], alpha_c, np_image_channels_array[idx], 0, gamma_c)
+        for idx, current_channel in site_df.iterrows():
+            contrast_coef = get_config()[&#39;channel_info&#39;][current_channel[&#39;channel&#39;]
+                                                         ][&#39;cp_contrast&#39;]
 
-        # Get the current style&#39;s intensity coefficients
-        intensity_coef = parameters.classic_style_parameters[&#39;intensity&#39;]
-        # Multiply the intensity of the channels using input coefs
-        for idx, image in enumerate(np_image_channels_array):
+            alpha_c = float(131 * (contrast_coef + 127)) / \
+                (127 * (131 - contrast_coef))
+            gamma_c = 127*(1-alpha_c)
+
+            image_channels_array[idx] = cv2.addWeighted(
+                image_channels_array[idx], alpha_c, image_channels_array[idx], 0, gamma_c)
+
+        # Multiply the intensity of the channels by coefs
+        for idx, current_channel in site_df.iterrows():
+            intensity_coef = get_config()[&#39;channel_info&#39;][current_channel[&#39;channel&#39;]
+                                                          ][&#39;cp_intensity&#39;]
+
             # Create a mask to check when value will overflow
-            mask = (image &gt; (255 / intensity_coef[idx])
-                    ) if intensity_coef[idx] != 0 else False
+            mask = (image_channels_array[idx] &gt; (255 / intensity_coef)
+                    ) if intensity_coef != 0 else False
+
             # Clip the result to be in [0;255] if overflow
-            np_image_channels_array[idx] = np.where(
+            image_channels_array[idx] = np.where(
                 mask,
                 255,
-                image * intensity_coef[idx])
+                image_channels_array[idx] * intensity_coef)
 
         # Combine the images according to their RGB coefficients
-        for idx, tuned_channel_image in enumerate(np_image_channels_array):
+        for idx, current_channel in site_df.iterrows():
+            rgb_coef = get_config()[
+                &#39;channel_info&#39;][current_channel[&#39;channel&#39;]][&#39;rgb&#39;]
             red_channel = red_channel + \
-                (tuned_channel_image / 255 *
-                 parameters.cellpainting_channels_info[idx][3][0])
+                (image_channels_array[idx] / 255 * rgb_coef[0])
             green_channel = green_channel + \
-                (tuned_channel_image / 255 *
-                 parameters.cellpainting_channels_info[idx][3][1])
+                (image_channels_array[idx] / 255 * rgb_coef[1])
             blue_channel = blue_channel + \
-                (tuned_channel_image / 255 *
-                 parameters.cellpainting_channels_info[idx][3][2])
+                (image_channels_array[idx] / 255 * rgb_coef[2])
 
         # Merge the Blue, Green and Red channels to form the final image
         merged_img = cv2.merge(
@@ -868,9 +717,9 @@ Missing images or wells must be taken into account in the final render.</p>
     else:
 
         # Get the current style&#39;s parameters
-        intensity_coef = parameters.fingerprint_style_dict[style][0]
-        channel_order = parameters.fingerprint_style_dict[style][1]
-        target_rgb = parameters.fingerprint_style_dict[style][2]
+        intensity_coef = get_config()[&#39;fingerprint_style_dict&#39;][style][0]
+        channel_order = get_config()[&#39;fingerprint_style_dict&#39;][style][1]
+        target_rgb = get_config()[&#39;fingerprint_style_dict&#39;][style][2]
 
         # Randomly initiate coefficients for each channel if they are missing
         if len(intensity_coef) == 0 and len(channel_order) == 0 and len(target_rgb) == 0:
@@ -882,36 +731,47 @@ Missing images or wells must be taken into account in the final render.</p>
             random.shuffle(target_rgb)
 
         # Multiply the intensity of the channels using input coefs
-        np_image_array_adjusted = []
-        # TODO: adapt for less than 5 selected channels?
+        image_array_adjusted = []
         for index, current_coef_mult in enumerate(intensity_coef):
-            np_image_array_adjusted.append(
-                np_image_channels_array[index] * current_coef_mult)
-        np_image_channels_array = np_image_array_adjusted
+            image_array_adjusted.append(
+                image_channels_array[index] * current_coef_mult)
+        image_channels_array = image_array_adjusted
 
         # Merge 2 extra channels each on 1 rgb channel
-        np_image_channels_array[target_rgb[0]] = (
-            np_image_channels_array[target_rgb[0]] +
-            np_image_channels_array[channel_order[3]]
+        image_channels_array[target_rgb[0]] = (
+            image_channels_array[target_rgb[0]] +
+            image_channels_array[channel_order[3]]
         )
-        np_image_channels_array[target_rgb[1]] = (
-            np_image_channels_array[target_rgb[1]] +
-            np_image_channels_array[channel_order[4]]
+        image_channels_array[target_rgb[1]] = (
+            image_channels_array[target_rgb[1]] +
+            image_channels_array[channel_order[4]]
         )
 
         # Merge the 3 BGR channels into one color image
         merged_img = cv2.merge(
             (
-                np_image_channels_array[channel_order[0]],
-                np_image_channels_array[channel_order[1]],
-                np_image_channels_array[channel_order[2]],
+                image_channels_array[channel_order[0]],
+                image_channels_array[channel_order[1]],
+                image_channels_array[channel_order[2]],
             )
         )
 
     # Add fingerprint id on image
     if display_fingerprint:
-        text = str(intensity_coef) + str(channel_order) + str(
-            target_rgb) if style != &#39;classic&#39; else str(parameters.classic_style_parameters)
+        # Build the fingerprint text to display
+        if style != &#39;classic&#39;:
+            text = str(intensity_coef) + str(channel_order) + str(
+                target_rgb)
+        else:
+            intensities = [x.get(&#39;cp_intensity&#39;)
+                           for x in get_config()[&#39;channel_info&#39;].values()]
+            contrasts = [x.get(&#39;cp_contrast&#39;)
+                         for x in get_config()[&#39;channel_info&#39;].values()]
+            filtered_intensities = list(filter(None, intensities))
+            filtered_contrasts = list(filter(None, contrasts))
+            text = str(filtered_intensities) + &#39; - &#39; + str(filtered_contrasts)
+
+        # Add text to image
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(
             merged_img,
@@ -959,28 +819,24 @@ Missing images or wells must be taken into account in the final render.</p>
     print(&#34;Load well images in memory..&#34;)
     logger.info(&#34;Load well images in memory..&#34;)
 
-    image_well_data = []
+    well_images = []
     for current_well in well_list:
         well_image = toolbox.load_well_image(
             current_well,
             temp_folder_path + &#34;/wells&#34;,
             image_format=output_format,
         )
-        image_well_data.append(well_image)
+        well_images.append(well_image)
 
     # Concatenate all the well images into horizontal stripes (1 per row)
     logger.info(&#34;Concatenate images into a plate..&#34;)
 
-    image_row_data = []
-    for current_plate_row in range(1, 17):
-        # Concatenate horizontally and vertically
-        well_start_id = ((current_plate_row - 1) * 24) + 0
-        well_end_id = current_plate_row * 24
-        sites_row = cv2.hconcat(image_well_data[well_start_id:well_end_id])
-        image_row_data.append(sites_row)
+    # Concatenate all the well images into one plate image
+    nb_well_row = int(get_config()[&#39;well_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+    nb_well_col = int(get_config()[&#39;well_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
 
-    # Concatenate all the stripes into 1 image
-    plate_image = cv2.vconcat(image_row_data)
+    plate_image = toolbox.concatenate_images_in_grid(
+        well_images, nb_well_row, nb_well_col)
 
     return plate_image</code></pre>
 </details>
@@ -1027,7 +883,7 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
     # folder before they are concatenated for final output.
     if scope == &#39;plate&#39;:
         # Create a Temp folder
-        new_folder = temp_path + &#34;/tmpgen-&#34; + plate_name + &#34;picasso&#34;
+        new_folder = temp_path + &#34;/lumos-tmpgen-&#34; + plate_name + &#34;-picasso&#34;
         # Remove folder if existing
         shutil.rmtree(new_folder, ignore_errors=True)
         # Create the temporary directory structure to work on wells
@@ -1104,33 +960,28 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
 
     # Define the rescale ratio based on the scope
     if scope == &#39;wells&#39;:
-        rescale_ratio = parameters.rescale_ratio_picasso_wells
+        rescale_ratio = get_config()[&#39;rescale_ratio_cp_wells&#39;]
     elif scope == &#39;plate&#39;:
-        rescale_ratio = parameters.rescale_ratio_picasso_plate
+        rescale_ratio = get_config()[&#39;rescale_ratio_cp_plate&#39;]
     else:
         rescale_ratio = 1
 
     # Multiplex all well/site channels into 1 well/site 8bit colored image
-    wellprogressbar = tqdm(well_list, unit=&#34;wells&#34;, leave=False)
-    for current_well in wellprogressbar:
+    well_progressbar = tqdm(well_list, unit=&#34;wells&#34;, leave=False, disable=not logger.ENABLED)
+    for current_well in well_progressbar:
         # For each well, generate the multiplexed images of its 6 sites
         current_well_sites_multiplexed_image_list = []
-        for current_site in range(1, 7):
+        for current_site in range(1, data_df[&#34;site&#34;].max()+1):
 
             # Get the image path list for the channels of the site, in the correct order
-            current_sites_df = data_df[
+            current_site_df = data_df[
                 ((data_df[&#34;well&#34;] == current_well) &amp;
                  (data_df[&#34;site&#34;] == current_site))
             ]
-            current_sites_df_ordered = current_sites_df.sort_values(
-                by=&#34;channel&#34;, ascending=True
-            )
-            channel_images_path = \
-                current_sites_df_ordered[&#34;fullpath&#34;].to_list()
 
             # Generate the multiplexed image of the current site
             multiplexed_site_image = colorizer(
-                img_channels_fullpath=channel_images_path,
+                site_df=current_site_df.copy(),
                 rescale_ratio=rescale_ratio,
                 max_multiply_coef=8,
                 style=style,
@@ -1151,14 +1002,18 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
                     multiplexed_site_image)
 
         if scope in (&#39;plate&#39;, &#39;wells&#39;):
+
             # Concatenate the site images into one well image
-            sites_row1 = cv2.hconcat(
-                current_well_sites_multiplexed_image_list[:3]
+            nb_site_row = int(
+                get_config()[&#39;site_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+            nb_site_col = int(
+                get_config()[&#39;site_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
+
+            current_well_image = toolbox.concatenate_images_in_grid(
+                current_well_sites_multiplexed_image_list,
+                nb_site_row,
+                nb_site_col,
             )
-            sites_row2 = cv2.hconcat(
-                current_well_sites_multiplexed_image_list[3:]
-            )
-            current_well_image = cv2.vconcat([sites_row1, sites_row2])
 
             # Add fingerprint on image
             if display_well_details:
@@ -1167,8 +1022,10 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
                 text = current_well
                 if platemap_path is not None:
                     # If the platemap is provided, extract all required columns
-                    pm_well_column = parameters.platemap_columns[&#39;well_column_name&#39;]
-                    pm_id_column = parameters.platemap_columns[&#39;id_column_name&#39;]
+                    pm_well_column = get_config(
+                    )[&#39;platemap_columns&#39;][&#39;well_column_name&#39;]
+                    pm_id_column = get_config(
+                    )[&#39;platemap_columns&#39;][&#39;id_column_name&#39;]
 
                     platemap_df = pd.read_csv(platemap_path,
                                               sep=&#39;\t&#39;,
@@ -1225,55 +1082,6 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
                 )</code></pre>
 </details>
 </dd>
-<dt id="lumos.picasso.get_images_full_path"><code class="name flex">
-<span>def <span class="ident">get_images_full_path</span></span>(<span>selected_channels, plate_input_path)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Finds all the paths to all the channels' images from the input folder</p>
-<pre><code>    Parameters:
-            selected_channels (string list): A list of all the channels IDs to be loaded.
-            plate_input_path (Path): The path to the folder where the input images are stored.
-
-    Returns:
-            Path list: A list of all the paths to all images of each channels
-</code></pre></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def get_images_full_path(selected_channels, plate_input_path):
-    &#39;&#39;&#39;
-    Finds all the paths to all the channels&#39; images from the input folder
-
-            Parameters:
-                    selected_channels (string list): A list of all the channels IDs to be loaded.
-                    plate_input_path (Path): The path to the folder where the input images are stored.
-
-            Returns:
-                    Path list: A list of all the paths to all images of each channels
-    &#39;&#39;&#39;
-
-    # Get the files from the plate folder, for the targeted channel
-    images_full_path_list = []
-    for channel in selected_channels:
-        current_channel_images_full_path_list = list(
-            Path(plate_input_path).glob(&#34;*&#34; + channel + &#34;.tif&#34;)
-        )
-        images_full_path_list.extend(current_channel_images_full_path_list)
-
-    # Check that we get expected images for a 384 well image
-    try:
-        assert len(images_full_path_list) == 2304 * 5
-    except AssertionError:
-        print(
-            &#34;The plate does not have the exact image count: expected &#34; +
-            str(2304 * 5) + &#34;, got &#34;
-            + str(len(images_full_path_list)),
-        )
-
-    return images_full_path_list</code></pre>
-</details>
-</dd>
 <dt id="lumos.picasso.picasso_generate_plate_image"><code class="name flex">
 <span>def <span class="ident">picasso_generate_plate_image</span></span>(<span>source_path, plate_name, output_path, temp_folder_path, platemap_path, output_format, style, scope, single_well, display_well_details)</span>
 </code></dt>
@@ -1295,9 +1103,9 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
 
     Returns:
             8 bit cv2 image(s):
-                    If the scope is 'wells', then all colorized well images are outputed to the output folder.
+                    If the scope is 'wells', then all colorized well images are outputted to the output folder.
                     If the scope is 'plate', then the well images are concatenated into one image of the whole
-                    plate before being outputed to the output folder.
+                    plate before being outputted to the output folder.
 </code></pre></div>
 <details class="source">
 <summary>
@@ -1334,23 +1142,20 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
 
             Returns:
                     8 bit cv2 image(s):
-                            If the scope is &#39;wells&#39;, then all colorized well images are outputed to the output folder.
+                            If the scope is &#39;wells&#39;, then all colorized well images are outputted to the output folder.
                             If the scope is &#39;plate&#39;, then the well images are concatenated into one image of the whole
-                            plate before being outputed to the output folder.
+                            plate before being outputted to the output folder.
     &#39;&#39;&#39;
 
     created_folder = create_temp_and_output_folders(
         temp_folder_path, output_path, scope, plate_name, style)
 
-    # Get the list of all paths for each channel image
-    images_full_path_list = get_images_full_path(
-        selected_channels=[&#34;C01&#34;, &#34;C02&#34;, &#34;C03&#34;, &#34;C04&#34;, &#34;C05&#34;],
-        plate_input_path=source_path,
-    )
+    channels_to_include = get_config()[&#39;cp_channels_to_use&#39;] \
+        if style == &#39;classic&#39; else list(get_config()[&#39;channel_info&#39;].keys())[:5]
 
-    # Build a database of the theorical plate
-    # TODO: adapt for less than 5 selected channels?
-    data_df = build_robustized_plate_dataframe(images_full_path_list)
+    # Build a Table of the available images of the plate
+    data_df = toolbox.build_input_images_df(
+        source_path, channels_to_include)
 
     # Get the list of wells to be rendered
     well_list = sorted(data_df[&#34;well&#34;].unique())
@@ -1358,9 +1163,9 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
     # Handle the single-well request
     if single_well and single_well not in well_list:
         logger.error(&#34;Single-well parameter not a valid well&#34;)
-        print(os.linesep, &#34;ERROR:&#34;, single_well,
-              &#34;is not a valid well.&#34;, os.linesep)
-        sys.exit()
+        logger.err_print(f&#34;ERROR: {single_well} is not a valid well.&#34;,
+                         color=&#39;bright_red&#39;)
+        sys.exit(1)
     elif single_well:
         # Override the list of wells to be rendered
         # with the single well
@@ -1381,6 +1186,7 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
 
     if scope in (&#39;sites&#39;, &#39;wells&#39;):
         print(f&#34; -&gt; Saved {scope} images in {output_path}&#34;)
+
     elif scope == &#39;plate&#39;:
         # Concatenate well images into a plate image
         plate_image = concatenate_well_images(
@@ -1395,7 +1201,7 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
         print(&#34; -&gt; Generated image of size:&#34;, plate_image.shape)
         print(&#34; -&gt; Saved as &#34;, plate_image_path)
 
-        # Purge the temp files
+        # Purge the temp files (only for plate)
         logger.info(&#34;Purge temporary folder&#34;)
         shutil.rmtree(created_folder, ignore_errors=True)</code></pre>
 </details>
@@ -1418,12 +1224,10 @@ If the scope is 'wells' or 'sites', this will be their output folder.</p>
 </li>
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
-<li><code><a title="lumos.picasso.build_robustized_plate_dataframe" href="#lumos.picasso.build_robustized_plate_dataframe">build_robustized_plate_dataframe</a></code></li>
 <li><code><a title="lumos.picasso.colorizer" href="#lumos.picasso.colorizer">colorizer</a></code></li>
 <li><code><a title="lumos.picasso.concatenate_well_images" href="#lumos.picasso.concatenate_well_images">concatenate_well_images</a></code></li>
 <li><code><a title="lumos.picasso.create_temp_and_output_folders" href="#lumos.picasso.create_temp_and_output_folders">create_temp_and_output_folders</a></code></li>
 <li><code><a title="lumos.picasso.generate_multiplexed_well_images" href="#lumos.picasso.generate_multiplexed_well_images">generate_multiplexed_well_images</a></code></li>
-<li><code><a title="lumos.picasso.get_images_full_path" href="#lumos.picasso.get_images_full_path">get_images_full_path</a></code></li>
 <li><code><a title="lumos.picasso.picasso_generate_plate_image" href="#lumos.picasso.picasso_generate_plate_image">picasso_generate_plate_image</a></code></li>
 </ul>
 </li>

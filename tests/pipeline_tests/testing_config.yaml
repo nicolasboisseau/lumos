@@ -1,0 +1,150 @@
+# ----------------  GENERAL CONFIGURATIONS  ----------------
+
+# How to go from a run folder to where the plates of the run are.
+path_from_run_folder_to_plates: 'plates/'
+
+# How to go from a plate folder to where the images of the plate are.
+path_from_plate_folder_to_images: 'Images/'
+
+# What naming scheme your input image files follow.
+#   - 'letter_wells' for files named like this: <PLATENAME>_A01_T0001F002L01A02Z01C03.tif
+#   - 'rows_and_columns' for files named like this: r01c02f03p01-ch4sk1fk1fl1.tif
+input_file_naming_scheme: rows_and_columns
+
+# Grid shape of the wells in a plate.
+# (rows x columns)
+well_grid: 20x32
+
+# Grid shape of the sites in a well.
+# (rows x columns)
+site_grid: 2x2
+
+# Dimensions of the sources images given to Lumos.
+# (height x width)
+image_dimensions: 540x540
+
+# Default output format of the generated images.
+default_output_format: png
+
+# Main table of parameters for each channels.
+channel_info:
+  # Also configure here the ID of your channels (the keys of the dictionary)
+  # to be as they appear in your file names.
+  #   Template:
+  #       <channel_id>:
+  #         name: <channel_name>
+  #         qc_coef: <QC_intensity_coefficient>
+  #         wavelength: <emission_wavelength>
+  #         rgb: <RGB_equivalence_of_the_wavelength>
+  #         cp_intensity: <CP_intensity_coefficient>
+  #         cp_contrast: <CP_contrast_coefficient>
+  ch1:
+    name: DNA Hoechst 33342
+    qc_coef: 16
+    wavelength: 450
+    rgb: [0, 70, 255]
+    cp_intensity: 10
+    cp_contrast: 1
+  ch2:
+    name: ER Concanavalin A
+    qc_coef: 8
+    wavelength: 510
+    rgb: [0, 255, 0]
+    cp_intensity: 5
+    cp_contrast: 1
+  ch3:
+    name: RNA SYTO 14
+    qc_coef: 8
+    wavelength: 570
+    rgb: [255, 255, 0]
+    cp_intensity: 1.8
+    cp_contrast: 0.7
+  ch4:
+    name: AGP Phalloidin and WGA
+    qc_coef: 8
+    wavelength: 630
+    rgb: [255, 79, 0]
+    cp_intensity: 5
+    cp_contrast: 1
+  ch5:
+    name: MITO MitoTracker Deep Red
+    qc_coef: 8
+    wavelength: 660
+    rgb: [255, 0, 0]
+    cp_intensity: 7
+    cp_contrast: 2.5
+  ch6:
+    name: Brightfield depth 1
+    qc_coef: 8
+  ch7:
+    name: Brightfield depth 2
+    qc_coef: 8
+  ch8:
+    name: Brightfield depth 3
+    qc_coef: 8
+
+
+# ----------------  QUALITY CONTROL CONFIG  ----------------
+
+# Default channels to render by the Quality Control mode of Lumos.
+default_channels_to_render:
+- ch1
+- ch2
+- ch3
+- ch4
+- ch5
+- ch6
+
+
+# Out of all the available channels, which ones are the brightfields.
+brightfield_channels:
+- ch6
+- ch7
+- ch8
+
+# Rescaling ratio used by Lumos to downscale the images.
+rescale_ratio_qc: 0.05
+
+# Styling parameters of the "missing image" markers.
+# They are displayed in place of missing or corrupted site images.
+placeholder_markers_intensity: 0
+placeholder_background_intensity: 64
+
+
+# ----------------  CELL PAINTING CONFIG  ----------------
+
+# Which channels to used for the Cell-Painting mode in 'classic' style.
+cp_channels_to_use:
+- ch1
+- ch2
+- ch4
+
+# Rescaling ratios used by Lumos to downscale the images.
+rescale_ratio_cp_wells: 0.25
+rescale_ratio_cp_plate: 0.1
+
+# If you use platemaps in Cell Painting, what are the names of your columns
+# for the required information?
+platemap_columns:
+  # Equivalence from what is required (keys)
+  # to the specific platemap column names (values).
+  id_column_name: jump-identifier
+  well_column_name: well_position
+
+# All available styles for the Cell-Painting mode.
+fingerprint_style_dict:
+  classic: [[], [], []]
+  # ^ This is empty because the classic style relies on another merging method.
+  random: [[], [], []]
+  blueish: [[6, 5, 6, 6, 6], [2, 3, 4, 1, 0], [0, 2, 1]]
+  blueish2: [[4, 6, 5, 5, 7], [3, 2, 0, 4, 1], [0, 1, 2]]
+  reddish: [[7, 7, 4, 4, 1], [2, 1, 3, 4, 0], [1, 0, 2]]
+  reddish2: [[7, 3, 6, 8, 5], [1, 2, 3, 0, 4], [1, 0, 2]]
+  blueredgreen: [[3, 8, 4, 4, 8], [0, 3, 4, 2, 1], [2, 0, 1]]
+  blueredgreen2: [[3, 4, 4, 5, 6], [2, 3, 4, 1, 0], [2, 1, 0]]
+  blueredgreen3: [[8, 4, 6, 5, 8], [1, 3, 4, 2, 0], [0, 1, 2]]
+  purple: [[2, 6, 6, 7, 2], [3, 1, 2, 4, 0], [0, 1, 2]]
+  purple2: [[1, 7, 8, 6, 8], [2, 4, 0, 3, 1], [0, 1, 2]]
+  cthulhu: [[3, 2, 3, 5, 7], [0, 3, 2, 1, 4], [1, 0, 2]]
+  meduse: [[8, 8, 3, 7, 8], [0, 3, 4, 1, 2], [2, 0, 1]]
+  alien: [[3, 6, 4, 3, 3], [1, 3, 2, 4, 0], [1, 0, 2]]

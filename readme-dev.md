@@ -15,11 +15,11 @@ When creating tests, if print statements are included inside of them for debuggi
 
 ### Code linting
 
-The codebase tries to follow the convensions of the **PEP8** Python style.
+The codebase tries to follow the conventions of the **PEP8** Python style.
 
 During development, the [`autopep8`](https://pypi.org/project/autopep8/) package can be used inside of VSCode to auto-format the currently open file (with a key-binding to make it convenient).
 
-Regular stricter checks can also be made using [`pylint`](https://pypi.org/project/pylint/) to check the codebase for errors, recommended refactorings, as well as broken conventions.
+Regular stricter checks can also be made using [`pylint`](https://pypi.org/project/pylint/) to check the codebase for errors, recommended refactoring, as well as broken conventions.
 
 ### Generating the HTML documentation
 
