@@ -1,0 +1,1179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>lumos.generator API documentation</title>
+<meta name="description" content="Main functions to generate platemaps with lumos." />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>lumos.generator</code></h1>
+</header>
+<section id="section-intro">
+<p>Main functions to generate platemaps with lumos.</p>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+&#39;&#39;&#39;
+Main functions to generate platemaps with lumos.
+&#39;&#39;&#39;
+
+import math
+import multiprocessing
+import os
+from pathlib import Path
+import platform
+import pandas as pd
+from shutil import copyfile
+import shutil
+from . import toolbox
+from . import logger
+from . import parameters
+import cv2
+from tqdm import tqdm
+import numpy as np
+
+
+def generate_plate_image_for_channel(
+    plate_input_path_string,
+    plate_name,
+    channel_to_render,
+    channel_label,
+    temp_folder,
+    keep_temp_files,
+):
+    &#39;&#39;&#39;
+    Generates an image of a cellpainting plate for a specific channel.
+
+            Parameters:
+                    plate_images_folder_path (Path): The path to the folder where the images of the plate are stored.
+                    plate_name (string): Name of the plate.
+                    channel_to_render (string): The cellpainting channel to render.
+                    channel_label (string): The label describing the channel type.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+
+            Returns:
+                    8-bit cv2 image
+    &#39;&#39;&#39;
+
+    # define a temp folder for the run
+    temp_folder = temp_folder + &#34;/lumos-tmpgen-&#34; + plate_name + channel_to_render
+
+    # remove temp dir if existing
+    if not keep_temp_files:
+        logger.debug(&#34;Purge temporary folder before plate generation&#34;)
+        shutil.rmtree(temp_folder, ignore_errors=True)
+
+    # create the temporary directory structure to work on images
+    try:
+        os.mkdir(temp_folder)
+        os.mkdir(temp_folder + &#34;/wells&#34;)
+    except FileExistsError:
+        pass
+
+    # read the plate input path
+    plate_input_path = Path(plate_input_path_string)
+
+    # get the files from the plate folder, for the targeted channel
+    images_full_path_list = list(
+        Path(plate_input_path).glob(&#34;*&#34; + channel_to_render + &#34;.tif&#34;)
+    )
+
+    # check that we get 2304 images for a 384 well image
+    try:
+        assert len(images_full_path_list) == 2304
+    except AssertionError:
+        logger.p_print(
+            &#34;The plate does not have the exact image count: expected 2304, got &#34;
+            + str(len(images_full_path_list))
+        )
+        logger.warning(
+            &#34;The plate does not have the exact image count: expected 2304, got &#34;
+            + str(len(images_full_path_list))
+        )
+
+    logger.info(
+        &#34;Start plate image generation for channel: &#34;
+        + str(channel_to_render)
+        + &#34; - &#34;
+        + str(channel_label)
+    )
+
+    # get the filenames list
+    images_full_path_list.sort()
+    images_filename_list = [str(x.name) for x in images_full_path_list]
+
+    # get the well list
+    image_well_list = [x.split(&#34;_&#34;)[1].split(&#34;_T&#34;)[0] for x in images_filename_list]
+
+    # get the siteid list (sitesid from 1 to 6)
+    image_site_list = [
+        x.split(&#34;_T0001F&#34;)[1].split(&#34;L&#34;)[0] for x in images_filename_list
+    ]
+    image_site_list_int = [int(x) for x in image_site_list]
+
+    # zip all in a data structure
+    image_data_zip = zip(
+        image_well_list,
+        image_site_list_int,
+        images_filename_list,
+        images_full_path_list,
+    )
+
+    # convert the zip into dataframe
+    data_df = pd.DataFrame(
+        list(image_data_zip), columns=[&#34;well&#34;, &#34;site&#34;, &#34;filename&#34;, &#34;fullpath&#34;]
+    )
+
+    # get the theoretical well list for 384 well plate
+    well_theoretical_list = [
+        l + str(r).zfill(2) for l in &#34;ABCDEFGHIJKLMNOP&#34; for r in range(1, 25)       # e.g. &#34;A01&#34;
+    ]
+    well_site_theoretical_list = [
+        [x, r] for x in well_theoretical_list for r in range(1, 7)                  # e.g. [&#34;A01&#34;, 1] .. [&#34;A01&#34;, 6]
+    ]
+
+    # create the theoretical well dataframe
+    theoretical_data_df = pd.DataFrame(
+        well_site_theoretical_list, columns=[&#34;well&#34;, &#34;site&#34;]
+    )
+
+    # join the real wells with the theoric ones
+    data_df_joined = theoretical_data_df.merge(
+        data_df,
+        left_on=[&#34;well&#34;, &#34;site&#34;],
+        right_on=[&#34;well&#34;, &#34;site&#34;],
+        how=&#34;left&#34;,
+    )
+
+    # log if there is a delta between theory and actual plate wells
+    delta = set(well_theoretical_list) - set(image_well_list)
+    logger.debug(&#34;Well Delta &#34; + str(delta))
+
+    # get the site images and store them locally
+    logger.info(&#34;Copying sources images in temp folder..&#34;)
+
+    copyprogressbar = tqdm(
+        data_df_joined.iterrows(),
+        total=len(data_df_joined),
+        desc=&#34;Download images to temp&#34;,
+        unit=&#34;images&#34;,
+        colour=&#34;blue&#34; if platform.system() == &#39;Windows&#39; else &#34;#006464&#34;,
+        leave=True,
+        disable=logger._is_in_parallel,
+    )
+    for _, current_image in copyprogressbar:
+
+        # do not copy if temp file already exists, or if source file doesn&#39;t exists
+        if not os.path.isfile(temp_folder + &#34;/&#34; + str(current_image[&#34;filename&#34;])):
+            try:
+                copyfile(
+                    current_image[&#34;fullpath&#34;],
+                    temp_folder + &#34;/&#34; + str(current_image[&#34;filename&#34;]),
+                )
+            except TypeError:
+                # this is thrown when the source file does not exist, or when copyfile() fails
+                logger.warning(
+                    &#34;TypeError: from &#34;
+                    + str(current_image[&#34;fullpath&#34;])
+                    + &#34; to &#34;
+                    + str(temp_folder)
+                    + &#34;/&#34;
+                    + str(current_image[&#34;filename&#34;])
+                )
+        else:
+            logger.debug(
+                &#34;File already exists in temp folder: &#34;
+                + temp_folder + &#34;/&#34; + str(current_image[&#34;filename&#34;])
+            )
+
+    logger.info(&#34;Copying sources images in temp folder..Done&#34;)
+
+    # get the list of all the wells
+    # We first convert to a set to remove redundant wells (duplicate data because each is represented 6 times, one per site)
+    well_list = list(set(data_df_joined[&#34;well&#34;]))
+    well_list.sort()
+
+    logger.info(&#34;Generating well images and storing them in temp dir..&#34;)
+
+    # generate one image per well by concatenation of image sites
+    wellprogressbar = tqdm(
+        well_list,
+        unit=&#34;wells&#34;,
+        colour=&#34;magenta&#34; if platform.system() == &#39;Windows&#39; else &#34;#6464a0&#34;,
+        leave=True,
+        disable=logger._is_in_parallel,
+    )
+    for current_well in wellprogressbar:
+        wellprogressbar.set_description(&#34;Processing well %s&#34; % current_well)
+
+        # get the 6 images metadata of the well
+        current_wells_df = data_df_joined.loc[data_df_joined[&#34;well&#34;] == current_well]
+
+        # load 6 wells into an image list (if image cannot be opened, e.g. if it is missing or corrupted, replace with a placeholder image)
+        image_list = []
+        for current_site in range(1, 7):
+            img = toolbox.load_site_image(current_site, current_wells_df, temp_folder)
+            try:
+                # resize the image first to reduce computations
+                img = cv2.resize(
+                    src=img,
+                    dsize=None,
+                    fx=parameters.rescale_ratio,
+                    fy=parameters.rescale_ratio,
+                    interpolation=cv2.INTER_CUBIC,
+                )
+                # normalize the intensity of each channel by a specific coefficient
+                img = img * parameters.channel_coefficients[channel_to_render]
+                # convert to 8 bit
+                img = img / 256
+                img = img.astype(&#34;uint8&#34;)
+            except:
+                # create placeholder image when error
+                img = np.full(
+                    shape=(int(1000*parameters.rescale_ratio), int(1000*parameters.rescale_ratio), 1),
+                    fill_value=parameters.placeholder_background_intensity,
+                    dtype=np.uint8
+                )
+                img = toolbox.draw_markers(img, parameters.placeholder_markers_intensity)
+                logger.warning(&#34;Missing or corrupted file in well &#34; + current_well + &#34; (site &#34; + str(current_site) + &#34;)&#34;)
+
+            image_list.append(img)
+
+        # concatenate horizontally and vertically
+        sites_row1 = cv2.hconcat(
+            [image_list[0], image_list[1], image_list[2]]
+        )
+        sites_row2 = cv2.hconcat(
+            [image_list[3], image_list[4], image_list[5]]
+        )
+        all_sites_image = cv2.vconcat([sites_row1, sites_row2])
+
+        # add well id on image
+        text = current_well + &#34; &#34; + channel_label
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(
+            all_sites_image,
+            text,
+            (math.ceil(25*parameters.rescale_ratio), math.ceil(125*parameters.rescale_ratio)),
+            font,
+            4*parameters.rescale_ratio,
+            (192, 192, 192),
+            math.ceil(8*parameters.rescale_ratio),
+            cv2.INTER_AREA,
+        )
+
+        # add well marks on borders
+        image_shape = all_sites_image.shape
+        cv2.rectangle(
+            all_sites_image,
+            (0, 0),
+            (image_shape[1], image_shape[0]),
+            color=(192, 192, 192),
+            thickness=1,
+        )
+
+        # save the image in the temp folder
+        cv2.imwrite(
+            temp_folder + &#34;/wells/well-&#34; + str(current_well) + &#34;.png&#34;,
+            all_sites_image,
+        )
+
+    logger.info(&#34;Generating well images and storing them in temp dir..Done&#34;)
+
+    # load all well images and store images in memory into a list
+    logger.p_print(&#34;Combining well images into final channel image..&#34;)
+    logger.info(&#34;Loading well images from temp dir..&#34;)
+
+    image_well_data = []
+    for current_well in list(well_list):
+        well_image = toolbox.load_well_image(
+            current_well,
+            temp_folder + &#34;/wells&#34;,
+        )
+        image_well_data.append(well_image)
+
+    logger.info(&#34;Loading well images from temp dir..Done&#34;)
+
+    # concatenate all the well images into horizontal stripes (1 per row)
+    logger.info(&#34;Concatenating well images into a plate..&#34;)
+
+    image_row_data = []
+    for current_plate_row in range(1, 17):
+
+        # concatenate horizontally and vertically
+        well_start_id = ((current_plate_row - 1) * 24) + 0
+        well_end_id = current_plate_row * 24
+        sites_row = cv2.hconcat(image_well_data[well_start_id:well_end_id])
+        image_row_data.append(sites_row)
+
+    # concatenate all the stripes into 1 image
+    plate_image = cv2.vconcat(image_row_data)
+
+    logger.info(&#34;Concatenating well images into a plate..Done&#34;)
+
+    # purge temp files
+    if not keep_temp_files:
+        logger.debug(&#34;Purge temporary folder after generation&#34;)
+        shutil.rmtree(temp_folder, ignore_errors=True)
+
+    return plate_image
+
+
+def render_single_channel_plateview(
+    source_path, plate_name, channel_to_render, channel_label, output_path, temp_folder_path, keep_temp_files
+):
+    &#39;&#39;&#39;
+    Renders 1 image for a specific channel of a plate.
+
+            Parameters:
+                    source_path (Path): The path to the folder where the images of the plate are stored.
+                    plate_name (string): Name of the plate.
+                    channel_to_render (string): The name of the channel to render.
+                    channel_label (string): The label describing the channel type.
+                    output_path (Path): The folder where to save the generated image.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+                    keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+            Returns:
+                    True (in case of success)
+    &#39;&#39;&#39;
+
+    # generate cv2 image for the channel
+    plate_image = generate_plate_image_for_channel(
+        source_path,
+        plate_name,
+        channel_to_render,
+        channel_label,
+        temp_folder_path,
+        keep_temp_files
+    )
+    logger.p_print(&#34; -&gt; Generated image of size: &#34; + str(plate_image.shape))
+
+    # save image
+    plate_image_path = (
+        output_path
+        + &#34;/&#34;
+        + plate_name
+        + &#34;-&#34;
+        + str(channel_to_render)
+        + &#34;-&#34;
+        + str(parameters.channel_coefficients[channel_to_render])
+        + &#34;.jpg&#34;
+    )
+    cv2.imwrite(plate_image_path, plate_image)
+    logger.p_print(&#34; -&gt; Saved as &#34; + plate_image_path)
+
+    return
+
+
+def render_single_plate_plateview(
+    source_path,
+    plate_name,
+    channel_list,
+    output_path,
+    temp_folder_path,
+    keep_temp_files
+):
+    &#39;&#39;&#39;
+    Renders 1 image per channel for a specific plate.
+
+            Parameters:
+                    source_path (Path): The path to the folder where the images of the plate are stored.
+                    plate_name (string): Name of the plate.
+                    channel_list (string list): The list of the channels to render.
+                    output_path (Path): The folder where to save the generated image.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+                    keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+            Returns:
+                    True (in case of success)
+    &#39;&#39;&#39;
+
+    for current_channel in tqdm(
+        channel_list,
+        desc=&#34;Render plate channels&#34;,
+        unit=&#34;channel&#34;,
+        colour=&#34;green&#34; if platform.system() == &#39;Windows&#39; else &#34;#00ff00&#34;,
+    ):
+        # get the current channel&#39;s label
+        channel_label = parameters.cellplainting_channels_dict[current_channel]
+
+        logger.p_print(os.linesep)
+        logger.p_print(&#34;Generate &#34; + current_channel + &#34; - &#34; + channel_label + os.linesep)
+
+        render_single_channel_plateview(
+            source_path,
+            plate_name,
+            current_channel,
+            channel_label,
+            output_path,
+            temp_folder_path,
+            keep_temp_files
+        )
+
+    return
+
+
+def render_single_plate_plateview_parallelism(
+    source_path,
+    plate_name,
+    channel_list,
+    output_path,
+    temp_folder_path,
+    parallelism,
+    keep_temp_files
+):
+    &#39;&#39;&#39;
+    Renders, in parallel, 1 image per channel for a specific plate.
+
+            Parameters:
+                    source_path (Path): The path to the folder where the images of the plate are stored.
+                    plate_name (string): Name of the plate.
+                    channel_list (string list): The list of the channels to render.
+                    output_path (Path): The folder where to save the generated image.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+                    parallelism (int): On how many CPU cores should the computation be spread.
+                    keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+            Returns:
+                    True (in case of success)
+    &#39;&#39;&#39;
+
+    n_cores = min(parallelism, multiprocessing.cpu_count())
+    pool = multiprocessing.Pool(n_cores)
+
+    try:
+        for current_channel in channel_list:
+            # get the current channel&#39;s label
+            channel_label = parameters.cellplainting_channels_dict[current_channel]
+
+            pool.apply_async(render_single_channel_plateview, args=(
+                source_path,
+                plate_name,
+                current_channel,
+                channel_label,
+                output_path,
+                temp_folder_path,
+                keep_temp_files
+            ))
+
+        pool.close()
+        pool.join()
+
+    except KeyboardInterrupt:
+        # does not work: this is an issue with the multiprocessing library
+        pool.terminate()
+        pool.join()
+
+    return
+
+
+def render_single_run_plateview(
+    source_folder_dict,
+    channel_list,
+    output_path,
+    temp_folder_path,
+    parallelism,
+    keep_temp_files
+):
+    &#39;&#39;&#39;
+    Renders images for all plates of a run. Compatible with parallelism.
+
+            Parameters:
+                    source_folder_dict (dict): A dictionary of the name of the plates and their respective path.
+                    channel_list (string list): The list of the channels to render for all plates.
+                    output_path (Path): The folder where to save the generated image.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+                    parallelism (int): On how many CPU cores should the computation be spread.
+                    keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+            Returns:
+                    True (in case of success)
+    &#39;&#39;&#39;
+    runprogressbar = tqdm(
+        source_folder_dict.keys(),
+        total=len(source_folder_dict),
+        desc=&#34;Run progress&#34;,
+        unit=&#34;plates&#34;,
+        colour=&#39;cyan&#39; if platform.system() == &#39;Windows&#39; else &#34;#0AAFAF&#34;,
+        leave=True,
+    )
+    for current_plate in runprogressbar:
+        # render all the channels of the plate
+        if parallelism == 1:
+            render_single_plate_plateview(
+                source_folder_dict[current_plate],
+                current_plate,
+                channel_list,
+                output_path,
+                temp_folder_path,
+                keep_temp_files,
+            )
+        else:
+            render_single_plate_plateview_parallelism(
+                source_folder_dict[current_plate],
+                current_plate,
+                channel_list,
+                output_path,
+                temp_folder_path,
+                parallelism,
+                keep_temp_files,
+            )
+
+    print(os.linesep + os.linesep + &#34;Run completed!&#34;)
+    print(str(len(source_folder_dict.keys())), &#34;plate(s) have been processed.&#34;, os.linesep)
+
+    return</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-functions">Functions</h2>
+<dl>
+<dt id="lumos.generator.generate_plate_image_for_channel"><code class="name flex">
+<span>def <span class="ident">generate_plate_image_for_channel</span></span>(<span>plate_input_path_string, plate_name, channel_to_render, channel_label, temp_folder, keep_temp_files)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Generates an image of a cellpainting plate for a specific channel.</p>
+<pre><code>    Parameters:
+            plate_images_folder_path (Path): The path to the folder where the images of the plate are stored.
+            plate_name (string): Name of the plate.
+            channel_to_render (string): The cellpainting channel to render.
+            channel_label (string): The label describing the channel type.
+            temp_folder_path (Path): The folder where temporary data can be stored.
+
+    Returns:
+            8-bit cv2 image
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def generate_plate_image_for_channel(
+    plate_input_path_string,
+    plate_name,
+    channel_to_render,
+    channel_label,
+    temp_folder,
+    keep_temp_files,
+):
+    &#39;&#39;&#39;
+    Generates an image of a cellpainting plate for a specific channel.
+
+            Parameters:
+                    plate_images_folder_path (Path): The path to the folder where the images of the plate are stored.
+                    plate_name (string): Name of the plate.
+                    channel_to_render (string): The cellpainting channel to render.
+                    channel_label (string): The label describing the channel type.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+
+            Returns:
+                    8-bit cv2 image
+    &#39;&#39;&#39;
+
+    # define a temp folder for the run
+    temp_folder = temp_folder + &#34;/lumos-tmpgen-&#34; + plate_name + channel_to_render
+
+    # remove temp dir if existing
+    if not keep_temp_files:
+        logger.debug(&#34;Purge temporary folder before plate generation&#34;)
+        shutil.rmtree(temp_folder, ignore_errors=True)
+
+    # create the temporary directory structure to work on images
+    try:
+        os.mkdir(temp_folder)
+        os.mkdir(temp_folder + &#34;/wells&#34;)
+    except FileExistsError:
+        pass
+
+    # read the plate input path
+    plate_input_path = Path(plate_input_path_string)
+
+    # get the files from the plate folder, for the targeted channel
+    images_full_path_list = list(
+        Path(plate_input_path).glob(&#34;*&#34; + channel_to_render + &#34;.tif&#34;)
+    )
+
+    # check that we get 2304 images for a 384 well image
+    try:
+        assert len(images_full_path_list) == 2304
+    except AssertionError:
+        logger.p_print(
+            &#34;The plate does not have the exact image count: expected 2304, got &#34;
+            + str(len(images_full_path_list))
+        )
+        logger.warning(
+            &#34;The plate does not have the exact image count: expected 2304, got &#34;
+            + str(len(images_full_path_list))
+        )
+
+    logger.info(
+        &#34;Start plate image generation for channel: &#34;
+        + str(channel_to_render)
+        + &#34; - &#34;
+        + str(channel_label)
+    )
+
+    # get the filenames list
+    images_full_path_list.sort()
+    images_filename_list = [str(x.name) for x in images_full_path_list]
+
+    # get the well list
+    image_well_list = [x.split(&#34;_&#34;)[1].split(&#34;_T&#34;)[0] for x in images_filename_list]
+
+    # get the siteid list (sitesid from 1 to 6)
+    image_site_list = [
+        x.split(&#34;_T0001F&#34;)[1].split(&#34;L&#34;)[0] for x in images_filename_list
+    ]
+    image_site_list_int = [int(x) for x in image_site_list]
+
+    # zip all in a data structure
+    image_data_zip = zip(
+        image_well_list,
+        image_site_list_int,
+        images_filename_list,
+        images_full_path_list,
+    )
+
+    # convert the zip into dataframe
+    data_df = pd.DataFrame(
+        list(image_data_zip), columns=[&#34;well&#34;, &#34;site&#34;, &#34;filename&#34;, &#34;fullpath&#34;]
+    )
+
+    # get the theoretical well list for 384 well plate
+    well_theoretical_list = [
+        l + str(r).zfill(2) for l in &#34;ABCDEFGHIJKLMNOP&#34; for r in range(1, 25)       # e.g. &#34;A01&#34;
+    ]
+    well_site_theoretical_list = [
+        [x, r] for x in well_theoretical_list for r in range(1, 7)                  # e.g. [&#34;A01&#34;, 1] .. [&#34;A01&#34;, 6]
+    ]
+
+    # create the theoretical well dataframe
+    theoretical_data_df = pd.DataFrame(
+        well_site_theoretical_list, columns=[&#34;well&#34;, &#34;site&#34;]
+    )
+
+    # join the real wells with the theoric ones
+    data_df_joined = theoretical_data_df.merge(
+        data_df,
+        left_on=[&#34;well&#34;, &#34;site&#34;],
+        right_on=[&#34;well&#34;, &#34;site&#34;],
+        how=&#34;left&#34;,
+    )
+
+    # log if there is a delta between theory and actual plate wells
+    delta = set(well_theoretical_list) - set(image_well_list)
+    logger.debug(&#34;Well Delta &#34; + str(delta))
+
+    # get the site images and store them locally
+    logger.info(&#34;Copying sources images in temp folder..&#34;)
+
+    copyprogressbar = tqdm(
+        data_df_joined.iterrows(),
+        total=len(data_df_joined),
+        desc=&#34;Download images to temp&#34;,
+        unit=&#34;images&#34;,
+        colour=&#34;blue&#34; if platform.system() == &#39;Windows&#39; else &#34;#006464&#34;,
+        leave=True,
+        disable=logger._is_in_parallel,
+    )
+    for _, current_image in copyprogressbar:
+
+        # do not copy if temp file already exists, or if source file doesn&#39;t exists
+        if not os.path.isfile(temp_folder + &#34;/&#34; + str(current_image[&#34;filename&#34;])):
+            try:
+                copyfile(
+                    current_image[&#34;fullpath&#34;],
+                    temp_folder + &#34;/&#34; + str(current_image[&#34;filename&#34;]),
+                )
+            except TypeError:
+                # this is thrown when the source file does not exist, or when copyfile() fails
+                logger.warning(
+                    &#34;TypeError: from &#34;
+                    + str(current_image[&#34;fullpath&#34;])
+                    + &#34; to &#34;
+                    + str(temp_folder)
+                    + &#34;/&#34;
+                    + str(current_image[&#34;filename&#34;])
+                )
+        else:
+            logger.debug(
+                &#34;File already exists in temp folder: &#34;
+                + temp_folder + &#34;/&#34; + str(current_image[&#34;filename&#34;])
+            )
+
+    logger.info(&#34;Copying sources images in temp folder..Done&#34;)
+
+    # get the list of all the wells
+    # We first convert to a set to remove redundant wells (duplicate data because each is represented 6 times, one per site)
+    well_list = list(set(data_df_joined[&#34;well&#34;]))
+    well_list.sort()
+
+    logger.info(&#34;Generating well images and storing them in temp dir..&#34;)
+
+    # generate one image per well by concatenation of image sites
+    wellprogressbar = tqdm(
+        well_list,
+        unit=&#34;wells&#34;,
+        colour=&#34;magenta&#34; if platform.system() == &#39;Windows&#39; else &#34;#6464a0&#34;,
+        leave=True,
+        disable=logger._is_in_parallel,
+    )
+    for current_well in wellprogressbar:
+        wellprogressbar.set_description(&#34;Processing well %s&#34; % current_well)
+
+        # get the 6 images metadata of the well
+        current_wells_df = data_df_joined.loc[data_df_joined[&#34;well&#34;] == current_well]
+
+        # load 6 wells into an image list (if image cannot be opened, e.g. if it is missing or corrupted, replace with a placeholder image)
+        image_list = []
+        for current_site in range(1, 7):
+            img = toolbox.load_site_image(current_site, current_wells_df, temp_folder)
+            try:
+                # resize the image first to reduce computations
+                img = cv2.resize(
+                    src=img,
+                    dsize=None,
+                    fx=parameters.rescale_ratio,
+                    fy=parameters.rescale_ratio,
+                    interpolation=cv2.INTER_CUBIC,
+                )
+                # normalize the intensity of each channel by a specific coefficient
+                img = img * parameters.channel_coefficients[channel_to_render]
+                # convert to 8 bit
+                img = img / 256
+                img = img.astype(&#34;uint8&#34;)
+            except:
+                # create placeholder image when error
+                img = np.full(
+                    shape=(int(1000*parameters.rescale_ratio), int(1000*parameters.rescale_ratio), 1),
+                    fill_value=parameters.placeholder_background_intensity,
+                    dtype=np.uint8
+                )
+                img = toolbox.draw_markers(img, parameters.placeholder_markers_intensity)
+                logger.warning(&#34;Missing or corrupted file in well &#34; + current_well + &#34; (site &#34; + str(current_site) + &#34;)&#34;)
+
+            image_list.append(img)
+
+        # concatenate horizontally and vertically
+        sites_row1 = cv2.hconcat(
+            [image_list[0], image_list[1], image_list[2]]
+        )
+        sites_row2 = cv2.hconcat(
+            [image_list[3], image_list[4], image_list[5]]
+        )
+        all_sites_image = cv2.vconcat([sites_row1, sites_row2])
+
+        # add well id on image
+        text = current_well + &#34; &#34; + channel_label
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        cv2.putText(
+            all_sites_image,
+            text,
+            (math.ceil(25*parameters.rescale_ratio), math.ceil(125*parameters.rescale_ratio)),
+            font,
+            4*parameters.rescale_ratio,
+            (192, 192, 192),
+            math.ceil(8*parameters.rescale_ratio),
+            cv2.INTER_AREA,
+        )
+
+        # add well marks on borders
+        image_shape = all_sites_image.shape
+        cv2.rectangle(
+            all_sites_image,
+            (0, 0),
+            (image_shape[1], image_shape[0]),
+            color=(192, 192, 192),
+            thickness=1,
+        )
+
+        # save the image in the temp folder
+        cv2.imwrite(
+            temp_folder + &#34;/wells/well-&#34; + str(current_well) + &#34;.png&#34;,
+            all_sites_image,
+        )
+
+    logger.info(&#34;Generating well images and storing them in temp dir..Done&#34;)
+
+    # load all well images and store images in memory into a list
+    logger.p_print(&#34;Combining well images into final channel image..&#34;)
+    logger.info(&#34;Loading well images from temp dir..&#34;)
+
+    image_well_data = []
+    for current_well in list(well_list):
+        well_image = toolbox.load_well_image(
+            current_well,
+            temp_folder + &#34;/wells&#34;,
+        )
+        image_well_data.append(well_image)
+
+    logger.info(&#34;Loading well images from temp dir..Done&#34;)
+
+    # concatenate all the well images into horizontal stripes (1 per row)
+    logger.info(&#34;Concatenating well images into a plate..&#34;)
+
+    image_row_data = []
+    for current_plate_row in range(1, 17):
+
+        # concatenate horizontally and vertically
+        well_start_id = ((current_plate_row - 1) * 24) + 0
+        well_end_id = current_plate_row * 24
+        sites_row = cv2.hconcat(image_well_data[well_start_id:well_end_id])
+        image_row_data.append(sites_row)
+
+    # concatenate all the stripes into 1 image
+    plate_image = cv2.vconcat(image_row_data)
+
+    logger.info(&#34;Concatenating well images into a plate..Done&#34;)
+
+    # purge temp files
+    if not keep_temp_files:
+        logger.debug(&#34;Purge temporary folder after generation&#34;)
+        shutil.rmtree(temp_folder, ignore_errors=True)
+
+    return plate_image</code></pre>
+</details>
+</dd>
+<dt id="lumos.generator.render_single_channel_plateview"><code class="name flex">
+<span>def <span class="ident">render_single_channel_plateview</span></span>(<span>source_path, plate_name, channel_to_render, channel_label, output_path, temp_folder_path, keep_temp_files)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Renders 1 image for a specific channel of a plate.</p>
+<pre><code>    Parameters:
+            source_path (Path): The path to the folder where the images of the plate are stored.
+            plate_name (string): Name of the plate.
+            channel_to_render (string): The name of the channel to render.
+            channel_label (string): The label describing the channel type.
+            output_path (Path): The folder where to save the generated image.
+            temp_folder_path (Path): The folder where temporary data can be stored.
+            keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+    Returns:
+            True (in case of success)
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def render_single_channel_plateview(
+    source_path, plate_name, channel_to_render, channel_label, output_path, temp_folder_path, keep_temp_files
+):
+    &#39;&#39;&#39;
+    Renders 1 image for a specific channel of a plate.
+
+            Parameters:
+                    source_path (Path): The path to the folder where the images of the plate are stored.
+                    plate_name (string): Name of the plate.
+                    channel_to_render (string): The name of the channel to render.
+                    channel_label (string): The label describing the channel type.
+                    output_path (Path): The folder where to save the generated image.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+                    keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+            Returns:
+                    True (in case of success)
+    &#39;&#39;&#39;
+
+    # generate cv2 image for the channel
+    plate_image = generate_plate_image_for_channel(
+        source_path,
+        plate_name,
+        channel_to_render,
+        channel_label,
+        temp_folder_path,
+        keep_temp_files
+    )
+    logger.p_print(&#34; -&gt; Generated image of size: &#34; + str(plate_image.shape))
+
+    # save image
+    plate_image_path = (
+        output_path
+        + &#34;/&#34;
+        + plate_name
+        + &#34;-&#34;
+        + str(channel_to_render)
+        + &#34;-&#34;
+        + str(parameters.channel_coefficients[channel_to_render])
+        + &#34;.jpg&#34;
+    )
+    cv2.imwrite(plate_image_path, plate_image)
+    logger.p_print(&#34; -&gt; Saved as &#34; + plate_image_path)
+
+    return</code></pre>
+</details>
+</dd>
+<dt id="lumos.generator.render_single_plate_plateview"><code class="name flex">
+<span>def <span class="ident">render_single_plate_plateview</span></span>(<span>source_path, plate_name, channel_list, output_path, temp_folder_path, keep_temp_files)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Renders 1 image per channel for a specific plate.</p>
+<pre><code>    Parameters:
+            source_path (Path): The path to the folder where the images of the plate are stored.
+            plate_name (string): Name of the plate.
+            channel_list (string list): The list of the channels to render.
+            output_path (Path): The folder where to save the generated image.
+            temp_folder_path (Path): The folder where temporary data can be stored.
+            keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+    Returns:
+            True (in case of success)
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def render_single_plate_plateview(
+    source_path,
+    plate_name,
+    channel_list,
+    output_path,
+    temp_folder_path,
+    keep_temp_files
+):
+    &#39;&#39;&#39;
+    Renders 1 image per channel for a specific plate.
+
+            Parameters:
+                    source_path (Path): The path to the folder where the images of the plate are stored.
+                    plate_name (string): Name of the plate.
+                    channel_list (string list): The list of the channels to render.
+                    output_path (Path): The folder where to save the generated image.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+                    keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+            Returns:
+                    True (in case of success)
+    &#39;&#39;&#39;
+
+    for current_channel in tqdm(
+        channel_list,
+        desc=&#34;Render plate channels&#34;,
+        unit=&#34;channel&#34;,
+        colour=&#34;green&#34; if platform.system() == &#39;Windows&#39; else &#34;#00ff00&#34;,
+    ):
+        # get the current channel&#39;s label
+        channel_label = parameters.cellplainting_channels_dict[current_channel]
+
+        logger.p_print(os.linesep)
+        logger.p_print(&#34;Generate &#34; + current_channel + &#34; - &#34; + channel_label + os.linesep)
+
+        render_single_channel_plateview(
+            source_path,
+            plate_name,
+            current_channel,
+            channel_label,
+            output_path,
+            temp_folder_path,
+            keep_temp_files
+        )
+
+    return</code></pre>
+</details>
+</dd>
+<dt id="lumos.generator.render_single_plate_plateview_parallelism"><code class="name flex">
+<span>def <span class="ident">render_single_plate_plateview_parallelism</span></span>(<span>source_path, plate_name, channel_list, output_path, temp_folder_path, parallelism, keep_temp_files)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Renders, in parallel, 1 image per channel for a specific plate.</p>
+<pre><code>    Parameters:
+            source_path (Path): The path to the folder where the images of the plate are stored.
+            plate_name (string): Name of the plate.
+            channel_list (string list): The list of the channels to render.
+            output_path (Path): The folder where to save the generated image.
+            temp_folder_path (Path): The folder where temporary data can be stored.
+            parallelism (int): On how many CPU cores should the computation be spread.
+            keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+    Returns:
+            True (in case of success)
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def render_single_plate_plateview_parallelism(
+    source_path,
+    plate_name,
+    channel_list,
+    output_path,
+    temp_folder_path,
+    parallelism,
+    keep_temp_files
+):
+    &#39;&#39;&#39;
+    Renders, in parallel, 1 image per channel for a specific plate.
+
+            Parameters:
+                    source_path (Path): The path to the folder where the images of the plate are stored.
+                    plate_name (string): Name of the plate.
+                    channel_list (string list): The list of the channels to render.
+                    output_path (Path): The folder where to save the generated image.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+                    parallelism (int): On how many CPU cores should the computation be spread.
+                    keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+            Returns:
+                    True (in case of success)
+    &#39;&#39;&#39;
+
+    n_cores = min(parallelism, multiprocessing.cpu_count())
+    pool = multiprocessing.Pool(n_cores)
+
+    try:
+        for current_channel in channel_list:
+            # get the current channel&#39;s label
+            channel_label = parameters.cellplainting_channels_dict[current_channel]
+
+            pool.apply_async(render_single_channel_plateview, args=(
+                source_path,
+                plate_name,
+                current_channel,
+                channel_label,
+                output_path,
+                temp_folder_path,
+                keep_temp_files
+            ))
+
+        pool.close()
+        pool.join()
+
+    except KeyboardInterrupt:
+        # does not work: this is an issue with the multiprocessing library
+        pool.terminate()
+        pool.join()
+
+    return</code></pre>
+</details>
+</dd>
+<dt id="lumos.generator.render_single_run_plateview"><code class="name flex">
+<span>def <span class="ident">render_single_run_plateview</span></span>(<span>source_folder_dict, channel_list, output_path, temp_folder_path, parallelism, keep_temp_files)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Renders images for all plates of a run. Compatible with parallelism.</p>
+<pre><code>    Parameters:
+            source_folder_dict (dict): A dictionary of the name of the plates and their respective path.
+            channel_list (string list): The list of the channels to render for all plates.
+            output_path (Path): The folder where to save the generated image.
+            temp_folder_path (Path): The folder where temporary data can be stored.
+            parallelism (int): On how many CPU cores should the computation be spread.
+            keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+    Returns:
+            True (in case of success)
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def render_single_run_plateview(
+    source_folder_dict,
+    channel_list,
+    output_path,
+    temp_folder_path,
+    parallelism,
+    keep_temp_files
+):
+    &#39;&#39;&#39;
+    Renders images for all plates of a run. Compatible with parallelism.
+
+            Parameters:
+                    source_folder_dict (dict): A dictionary of the name of the plates and their respective path.
+                    channel_list (string list): The list of the channels to render for all plates.
+                    output_path (Path): The folder where to save the generated image.
+                    temp_folder_path (Path): The folder where temporary data can be stored.
+                    parallelism (int): On how many CPU cores should the computation be spread.
+                    keep_temp_files (bool): [dev] Whether or not the temporary files should be kept between runs.
+
+            Returns:
+                    True (in case of success)
+    &#39;&#39;&#39;
+    runprogressbar = tqdm(
+        source_folder_dict.keys(),
+        total=len(source_folder_dict),
+        desc=&#34;Run progress&#34;,
+        unit=&#34;plates&#34;,
+        colour=&#39;cyan&#39; if platform.system() == &#39;Windows&#39; else &#34;#0AAFAF&#34;,
+        leave=True,
+    )
+    for current_plate in runprogressbar:
+        # render all the channels of the plate
+        if parallelism == 1:
+            render_single_plate_plateview(
+                source_folder_dict[current_plate],
+                current_plate,
+                channel_list,
+                output_path,
+                temp_folder_path,
+                keep_temp_files,
+            )
+        else:
+            render_single_plate_plateview_parallelism(
+                source_folder_dict[current_plate],
+                current_plate,
+                channel_list,
+                output_path,
+                temp_folder_path,
+                parallelism,
+                keep_temp_files,
+            )
+
+    print(os.linesep + os.linesep + &#34;Run completed!&#34;)
+    print(str(len(source_folder_dict.keys())), &#34;plate(s) have been processed.&#34;, os.linesep)
+
+    return</code></pre>
+</details>
+</dd>
+</dl>
+</section>
+<section>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="lumos" href="index.html">lumos</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-functions">Functions</a></h3>
+<ul class="">
+<li><code><a title="lumos.generator.generate_plate_image_for_channel" href="#lumos.generator.generate_plate_image_for_channel">generate_plate_image_for_channel</a></code></li>
+<li><code><a title="lumos.generator.render_single_channel_plateview" href="#lumos.generator.render_single_channel_plateview">render_single_channel_plateview</a></code></li>
+<li><code><a title="lumos.generator.render_single_plate_plateview" href="#lumos.generator.render_single_plate_plateview">render_single_plate_plateview</a></code></li>
+<li><code><a title="lumos.generator.render_single_plate_plateview_parallelism" href="#lumos.generator.render_single_plate_plateview_parallelism">render_single_plate_plateview_parallelism</a></code></li>
+<li><code><a title="lumos.generator.render_single_run_plateview" href="#lumos.generator.render_single_run_plateview">render_single_run_plateview</a></code></li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
