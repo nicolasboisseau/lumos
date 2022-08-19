@@ -177,8 +177,8 @@ Some examples of complete commands (using both argument names and aliases) could
 $ lumos qc --scope plate --source-path ./plate1 --output-path ./output
 $ lumos qc -s plate -sp ./plate1 -op ./output
 
-$ lumos qc --scope channel --channel C01 --source-path ./plate2 --output-path ./output --temp-path ./temp
-$ lumos qc --s channel --c C01 -sp ./plate2 -op ./output -tp ./temp
+$ lumos qc --scope channel --channel Z01C01 --source-path ./plate2 --output-path ./output --temp-path ./temp
+$ lumos qc --s channel --c Z01C01 -sp ./plate2 -op ./output -tp ./temp
 
 $ lumos cp --scope plate --source-path ./plate3 --output-path ./output
 $ lumos cp --s plate -sp ./plate3 -op ./output
@@ -193,8 +193,8 @@ And similarly, using a custom configuration file, we could get:
 $ lumos --config-file ./lumos_config.yaml qc --scope plate --source-path ./plate1 --output-path ./output
 $ lumos -cf ./lumos_config.yaml qc -s plate -sp ./plate1 -op ./output
 
-$ lumos --config-file ./lumos_config.yaml qc --scope channel --channel C01 --source-path ./plate2 --output-path ./output --temp-path ./temp
-$ lumos -cf ./lumos_config.yaml qc --s channel --c C01 -sp ./plate2 -op ./output -tp ./temp
+$ lumos --config-file ./lumos_config.yaml qc --scope channel --channel Z01C01 --source-path ./plate2 --output-path ./output --temp-path ./temp
+$ lumos -cf ./lumos_config.yaml qc --s channel --c Z01C01 -sp ./plate2 -op ./output -tp ./temp
 
 $ lumos --config-file ./lumos_config.yaml cp --scope plate --source-path ./plate3 --output-path ./output
 $ lumos -cf ./lumos_config.yaml cp --s plate -sp ./plate3 -op ./output
