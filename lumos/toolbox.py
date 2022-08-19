@@ -4,8 +4,10 @@
 '''
 Extra helper functions for lumos.
 '''
-import cv2
+
 import os
+import cv2
+
 from . import logger
 
 
@@ -35,12 +37,12 @@ def load_site_image(site, current_wells_df, source_folder):
         site_img.shape
     except:
         logger.warning("Failed to load site image")
-        return
+        return None
 
     return site_img
 
 
-def load_well_image(well, source_folder):
+def load_well_image(well, source_folder, image_format):
     '''
     Loads a well image, for a specific channel.
     Well images are temporary images made by lumos for a specific channel.
@@ -54,7 +56,7 @@ def load_well_image(well, source_folder):
                     16-bit cv2 image
     '''
 
-    well_image_path = source_folder + "/well-" + str(well) + ".png"
+    well_image_path = source_folder + f"/well-{well}.{image_format}"
     if not os.path.isfile(well_image_path):
         logger.debug("Path to well image does not exist")
     well_img = cv2.imread(well_image_path)
@@ -63,6 +65,7 @@ def load_well_image(well, source_folder):
         well_img.shape
     except:
         logger.warning("Failed to load well image")
+        return None
 
     return well_img
 
@@ -79,47 +82,49 @@ def draw_markers(image, color):
                     modified image
     '''
 
+    # Define the characteristics of the shapes to be drawn
     length = int(min(image.shape[0], image.shape[1]) / 10)
     thickness = int(min(image.shape[0], image.shape[1]) / 20)
 
-    startCorner1 = (0, 0)
-    startCorner2 = (image.shape[0], 0)
-    startCorner3 = (0, image.shape[1])
-    startCorner4 = image.shape[:2]
+    # Find the corners of the image
+    start_corner_1 = (0, 0)
+    start_corner_2 = (image.shape[0], 0)
+    start_corner_3 = (0, image.shape[1])
+    start_corner_4 = image.shape[:2]
 
-    # draw corner 1
-    image = cv2.line(image, startCorner1, (int(
-        startCorner1[0] + length), startCorner1[1]), color, thickness)
-    image = cv2.line(image, startCorner1, (startCorner1[0], int(
-        startCorner1[1] + length)), color, thickness)
-    # draw corner 2
-    image = cv2.line(image, startCorner2, (int(
-        startCorner2[0] - length), startCorner2[1]), color, thickness)
-    image = cv2.line(image, startCorner2, (startCorner2[0], int(
-        startCorner2[1] + length)), color, thickness)
-    # draw corner 3
-    image = cv2.line(image, startCorner3, (int(
-        startCorner3[0] + length), startCorner3[1]), color, thickness)
-    image = cv2.line(image, startCorner3, (startCorner3[0], int(
-        startCorner3[1] - length)), color, thickness)
-    # draw corner 3
-    image = cv2.line(image, startCorner4, (int(
-        startCorner4[0] - length), startCorner4[1]), color, thickness)
-    image = cv2.line(image, startCorner4, (startCorner4[0], int(
-        startCorner4[1] - length)), color, thickness)
+    # Draw corner 1
+    image = cv2.line(image, start_corner_1, (int(
+        start_corner_1[0] + length), start_corner_1[1]), color, thickness)
+    image = cv2.line(image, start_corner_1, (start_corner_1[0], int(
+        start_corner_1[1] + length)), color, thickness)
+    # Draw corner 2
+    image = cv2.line(image, start_corner_2, (int(
+        start_corner_2[0] - length), start_corner_2[1]), color, thickness)
+    image = cv2.line(image, start_corner_2, (start_corner_2[0], int(
+        start_corner_2[1] + length)), color, thickness)
+    # Draw corner 3
+    image = cv2.line(image, start_corner_3, (int(
+        start_corner_3[0] + length), start_corner_3[1]), color, thickness)
+    image = cv2.line(image, start_corner_3, (start_corner_3[0], int(
+        start_corner_3[1] - length)), color, thickness)
+    # Draw corner 3
+    image = cv2.line(image, start_corner_4, (int(
+        start_corner_4[0] - length), start_corner_4[1]), color, thickness)
+    image = cv2.line(image, start_corner_4, (start_corner_4[0], int(
+        start_corner_4[1] - length)), color, thickness)
 
-    # draw circle
+    # Draw circle
     radius = int(min(image.shape[0], image.shape[1]) / 5)
     center = (int(image.shape[0]/2), int(image.shape[1]/2))
     image = cv2.circle(image, center, radius, color, thickness)
 
-    # draw cross-line
-    startCrossLine = (center[0]-radius, center[1]+radius)
-    endCrossLine = (center[0]+radius, center[1]-radius)
-    image = cv2.line(image, startCrossLine, endCrossLine, color, thickness)
+    # Draw cross-line
+    start_cross_line = (center[0]-radius, center[1]+radius)
+    end_cross_line = (center[0]+radius, center[1]-radius)
+    image = cv2.line(image, start_cross_line, end_cross_line, color, thickness)
 
-    # # draw character (cv2 does not support unicode characters)
-    # text = "Ø"
+    # # Draw character (cv2 does not support unicode characters)
+    # text = "X"
     # image = cv2.putText(
     #     img = image,
     #     text = text,

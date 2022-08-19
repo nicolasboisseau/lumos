@@ -38,8 +38,8 @@ import logging
 import os
 
 
-# state variable to know if the current lumos session is using parallelism
-_is_in_parallel = True
+# State variable to know if the current lumos session is using parallelism
+IS_IN_PARALLEL = True
 
 
 def setup(temp_directory, is_in_parallel):
@@ -51,19 +51,20 @@ def setup(temp_directory, is_in_parallel):
                     parallelism (bool): Whether or not parallel computation is enabled for the current run of the program.
     &#39;&#39;&#39;
 
-    # set the global state variable of the module
-    global _is_in_parallel
-    _is_in_parallel = is_in_parallel
+    # Set the global state variable of the module
+    global IS_IN_PARALLEL
+    IS_IN_PARALLEL = is_in_parallel
 
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
 
-        # define log format
-        log_formatter = logging.Formatter(&#39;%(asctime)s %(levelname)s:\t%(message)s&#39;)
+        # Define log format
+        log_formatter = logging.Formatter(
+            &#39;%(asctime)s %(levelname)s:\t%(message)s&#39;)
 
-        # create logger
+        # Create logger
         app_log = logging.getLogger(&#39;root&#39;)
 
-        # create a rotating log file for regular execution (3 files * 2MB max)
+        # Create a rotating log file for regular execution (3 files * 2MB max)
         my_handler = RotatingFileHandler(
             temp_directory + &#34;/lumos.log&#34;,
             mode=&#39;a&#39;,
@@ -80,7 +81,7 @@ def setup(temp_directory, is_in_parallel):
         app_log.addHandler(my_handler)
 
     else:
-        # don&#39;t log anything, as it is not compatible with multiprocessing
+        # Don&#39;t log anything, as it is not compatible with multiprocessing
         pass
 
 
@@ -92,7 +93,7 @@ def p_print(text, end=os.linesep):
                     text (string): The text to be printed.
                     end (string): What the separating character at the end of the print should be.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         print(text, end=end)
 
 
@@ -103,7 +104,7 @@ def debug(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).debug(text)
 
 
@@ -114,7 +115,7 @@ def info(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).info(text)
 
 
@@ -125,7 +126,7 @@ def warning(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).warning(text)
 
 
@@ -136,7 +137,7 @@ def error(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).error(text)
 
 
@@ -147,7 +148,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).critical(text)</code></pre>
 </details>
 </section>
@@ -177,7 +178,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).critical(text)</code></pre>
 </details>
 </dd>
@@ -200,7 +201,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).debug(text)</code></pre>
 </details>
 </dd>
@@ -223,7 +224,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).error(text)</code></pre>
 </details>
 </dd>
@@ -246,12 +247,12 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).info(text)</code></pre>
 </details>
 </dd>
 <dt id="lumos.logger.p_print"><code class="name flex">
-<span>def <span class="ident">p_print</span></span>(<span>text, end='\n')</span>
+<span>def <span class="ident">p_print</span></span>(<span>text, end='\r\n')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Parallel print: Handles printing to the console, according to if parallelism is being used or not.</p>
@@ -271,7 +272,7 @@ def critical(text):
                     text (string): The text to be printed.
                     end (string): What the separating character at the end of the print should be.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         print(text, end=end)</code></pre>
 </details>
 </dd>
@@ -297,19 +298,20 @@ def critical(text):
                     parallelism (bool): Whether or not parallel computation is enabled for the current run of the program.
     &#39;&#39;&#39;
 
-    # set the global state variable of the module
-    global _is_in_parallel
-    _is_in_parallel = is_in_parallel
+    # Set the global state variable of the module
+    global IS_IN_PARALLEL
+    IS_IN_PARALLEL = is_in_parallel
 
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
 
-        # define log format
-        log_formatter = logging.Formatter(&#39;%(asctime)s %(levelname)s:\t%(message)s&#39;)
+        # Define log format
+        log_formatter = logging.Formatter(
+            &#39;%(asctime)s %(levelname)s:\t%(message)s&#39;)
 
-        # create logger
+        # Create logger
         app_log = logging.getLogger(&#39;root&#39;)
 
-        # create a rotating log file for regular execution (3 files * 2MB max)
+        # Create a rotating log file for regular execution (3 files * 2MB max)
         my_handler = RotatingFileHandler(
             temp_directory + &#34;/lumos.log&#34;,
             mode=&#39;a&#39;,
@@ -326,7 +328,7 @@ def critical(text):
         app_log.addHandler(my_handler)
 
     else:
-        # don&#39;t log anything, as it is not compatible with multiprocessing
+        # Don&#39;t log anything, as it is not compatible with multiprocessing
         pass</code></pre>
 </details>
 </dd>
@@ -349,7 +351,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not _is_in_parallel:
+    if not IS_IN_PARALLEL:
         logging.getLogger(&#39;root&#39;).warning(text)</code></pre>
 </details>
 </dd>

@@ -34,23 +34,23 @@
 Main parameters for lumos operation.
 &#39;&#39;&#39;
 
-cellplainting_channels_info = [
+cellpainting_channels_info = [
     # Channel number, Channel name, EX wavelength, RGB equivalence
     [&#34;C01&#34;, &#34;C01 DNA Hoechst 33342&#34;, 450, [0, 70, 255]],            # ~blue
     [&#34;C02&#34;, &#34;C02 ER Concanavalin A&#34;, 510, [0, 255, 0]],             # ~green
     [&#34;C03&#34;, &#34;C03 RNA SYTO 14&#34;, 570, [225, 255, 0]],                 # ~yellow
     [&#34;C04&#34;, &#34;C04 AGP Phalloidin and WGA&#34;, 630, [255, 79, 0]],       # ~orange
     [&#34;C05&#34;, &#34;C05 MITO MitoTracker Deep Red&#34;, 660, [255, 0, 0]],     # ~red
-    [&#34;Z01C06&#34;, &#34;C06 Brigtfield depth1&#34;, None, None],
-    [&#34;Z02C06&#34;, &#34;C06 Brigtfield depth2&#34;, None, None],
-    [&#34;Z03C06&#34;, &#34;C06 Brigtfield depth3&#34;, None, None],
+    [&#34;Z01C06&#34;, &#34;C06 Brightfield depth1&#34;, None, None],
+    [&#34;Z02C06&#34;, &#34;C06 Brightfield depth2&#34;, None, None],
+    [&#34;Z03C06&#34;, &#34;C06 Brightfield depth3&#34;, None, None],
 ]
 &#39;&#39;&#39;
 Matrix of information for each of the channels.
     Columns: [Channel number, Channel name, EX wavelength, RGB equivalence]
 &#39;&#39;&#39;
 
-cellplainting_channels_dict = {
+cellpainting_channels_dict = {
     &#34;C01&#34;: &#34;DNA Hoechst 33342&#34;,
     &#34;C02&#34;: &#34;ER Concanavalin A&#34;,
     &#34;C03&#34;: &#34;RNA SYTO 14&#34;,
@@ -64,19 +64,13 @@ cellplainting_channels_dict = {
 Dictionary of the channel names and their respective labels.
 &#39;&#39;&#39;
 
-# what are the default channels to render for a plate/run
-default_channels_to_render = [
-    &#34;C01&#34;,
-    &#34;C02&#34;,
-    &#34;C03&#34;,
-    &#34;C04&#34;,
-    &#34;C05&#34;,
-]
+# What are the default channels to render for a plate/run
+default_channels_to_render = [&#34;C01&#34;, &#34;C02&#34;, &#34;C03&#34;, &#34;C04&#34;, &#34;C05&#34;]
 &#39;&#39;&#39;
 List of the default channels to render in a run or single plate rendering.
 &#39;&#39;&#39;
 
-# intensity normalizing coefficient factors per channel
+# Intensity normalizing coefficient factors per channel
 channel_coefficients = {
     &#34;C01&#34;: 16,
     &#34;C02&#34;: 8,
@@ -91,14 +85,26 @@ channel_coefficients = {
 Intensity multiplier coefficients for each of the channels (those are arbitrary and used to make interest points easier to see).
 &#39;&#39;&#39;
 
-clipping_threshold_min_value = 1
-clipping_threshold_max_value = 12000
-normalize_alpha = 0
-normalize_beta = 65535
+platemap_columns = {
+    # Equivalence from what is required to the specific platemap column names
+    &#39;well_column_name&#39;: &#34;well_position&#34;,
+    &#39;id_column_name&#39;: &#34;jump-identifier&#34;,
+}
+&#39;&#39;&#39;
+Dictionary of the columns to be parsed from the platemap database.
+&#39;&#39;&#39;
+
+output_file_format_list = [&#39;jpg&#39;, &#39;jpeg&#39;, &#39;png&#39;]
+
 rescale_ratio = 0.1
 
 placeholder_background_intensity = 64
 placeholder_markers_intensity = 0
+
+# clipping_threshold_min_value = 1
+# clipping_threshold_max_value = 12000
+# normalize_alpha = 0
+# normalize_beta = 65535
 
 
 #  --------  PARAMETERS ONLY FOR CELL-PAINTING (PICASSO)  --------
@@ -106,20 +112,21 @@ placeholder_markers_intensity = 0
 rescale_ratio_picasso_wells = 1
 rescale_ratio_picasso_plate = 0.25
 
-# list of merge rendering styles for picasso
+# List of merge rendering styles for picasso
 fingerprint_style_dict = {
-    &#39;accurate&#39;: [[], [], []],
+    &#39;classic&#39;: [[], [], []],
+    # ^ This is empty because the classic style relies on another merging method
     &#39;random&#39;: [[], [], []],
     &#39;blueish&#39;: [[6, 5, 6, 6, 6], [2, 3, 4, 1, 0], [0, 2, 1]],
     &#39;blueish2&#39;: [[4, 6, 5, 5, 7], [3, 2, 0, 4, 1], [0, 1, 2]],
+    &#39;reddish&#39;: [[7, 7, 4, 4, 1], [2, 1, 3, 4, 0], [1, 0, 2]],
+    &#39;reddish2&#39;: [[7, 3, 6, 8, 5], [1, 2, 3, 0, 4], [1, 0, 2]],
     &#39;blueredgreen&#39;: [[3, 8, 4, 4, 8], [0, 3, 4, 2, 1], [2, 0, 1]],
     &#39;blueredgreen2&#39;: [[3, 4, 4, 5, 6], [2, 3, 4, 1, 0], [2, 1, 0]],
     &#39;blueredgreen3&#39;: [[8, 4, 6, 5, 8], [1, 3, 4, 2, 0], [0, 1, 2]],
-    &#39;reddish&#39;: [[7, 7, 4, 4, 1], [2, 1, 3, 4, 0], [1, 0, 2]],
-    &#39;reddish2&#39;: [[7, 3, 6, 8, 5], [1, 2, 3, 0, 4], [1, 0, 2]],
     &#39;purple&#39;: [[2, 6, 6, 7, 2], [3, 1, 2, 4, 0], [0, 1, 2]],
     &#39;purple2&#39;: [[1, 7, 8, 6, 8], [2, 4, 0, 3, 1], [0, 1, 2]],
-    &#39;chthulu&#39;: [[3, 2, 3, 5, 7], [0, 3, 2, 1, 4], [1, 0, 2]],
+    &#39;cthulhu&#39;: [[3, 2, 3, 5, 7], [0, 3, 2, 1, 4], [1, 0, 2]],
     &#39;meduse&#39;: [[8, 8, 3, 7, 8], [0, 3, 4, 1, 2], [2, 0, 1]],
     &#39;alien&#39;: [[3, 6, 4, 3, 3], [1, 3, 2, 4, 0], [1, 0, 2]],
 }
@@ -127,12 +134,22 @@ fingerprint_style_dict = {
 Dictionary of the styles that can be used for &#34;merge cell painting&#34;, and their associated coefficients.
 &#39;&#39;&#39;
 
-accurate_style_parameters = {
-    &#39;intensity&#39;: [11, 9, 2, 4, 12],
-    &#39;contrast&#39;: [0, 0, 0.5, 1, 1.85],
+classic_style_parameters = {
+    # Tweaked by eye (on DMSO-only plate)
+    &#39;intensity&#39;: [10, 5, 1.8, 5, 7],
+    &#39;contrast&#39;: [1, 1, 0.7, 1, 2.5],
+
+    # Equal greyscale (on DMSO-only plate)
+    # &#39;intensity&#39;: [10, 7, 2.2, 5, 7.5],
+    # &#39;contrast&#39;: [1, 0.5, 0, 0.9, 2],
+
+    # Lumos v0.0.3
+    # &#39;intensity&#39;: [11, 9, 2, 4, 12],
+    # &#39;contrast&#39;: [0, 0, 0.5, 1, 1.85],
 }
 &#39;&#39;&#39;
-Dictionary of the coefficients used for &#34;accurate&#34; cell painting (using an approximation of the actual colors of the channels emitted wavelengths)
+Dictionary of the coefficients used for &#34;classic&#34; cell painting
+(using an approximation of the actual colors of the channels emitted wavelengths)
 &#39;&#39;&#39;
 
 # Other styles not integrated
@@ -149,15 +166,11 @@ Dictionary of the coefficients used for &#34;accurate&#34; cell painting (using 
 <section>
 <h2 class="section-title" id="header-variables">Global variables</h2>
 <dl>
-<dt id="lumos.parameters.accurate_style_parameters"><code class="name">var <span class="ident">accurate_style_parameters</span></code></dt>
-<dd>
-<div class="desc"><p>Dictionary of the coefficients used for "accurate" cell painting (using an approximation of the actual colors of the channels emitted wavelengths)</p></div>
-</dd>
-<dt id="lumos.parameters.cellplainting_channels_dict"><code class="name">var <span class="ident">cellplainting_channels_dict</span></code></dt>
+<dt id="lumos.parameters.cellpainting_channels_dict"><code class="name">var <span class="ident">cellpainting_channels_dict</span></code></dt>
 <dd>
 <div class="desc"><p>Dictionary of the channel names and their respective labels.</p></div>
 </dd>
-<dt id="lumos.parameters.cellplainting_channels_info"><code class="name">var <span class="ident">cellplainting_channels_info</span></code></dt>
+<dt id="lumos.parameters.cellpainting_channels_info"><code class="name">var <span class="ident">cellpainting_channels_info</span></code></dt>
 <dd>
 <div class="desc"><p>Matrix of information for each of the channels.
 Columns: [Channel number, Channel name, EX wavelength, RGB equivalence]</p></div>
@@ -166,6 +179,11 @@ Columns: [Channel number, Channel name, EX wavelength, RGB equivalence]</p></div
 <dd>
 <div class="desc"><p>Intensity multiplier coefficients for each of the channels (those are arbitrary and used to make interest points easier to see).</p></div>
 </dd>
+<dt id="lumos.parameters.classic_style_parameters"><code class="name">var <span class="ident">classic_style_parameters</span></code></dt>
+<dd>
+<div class="desc"><p>Dictionary of the coefficients used for "classic" cell painting
+(using an approximation of the actual colors of the channels emitted wavelengths)</p></div>
+</dd>
 <dt id="lumos.parameters.default_channels_to_render"><code class="name">var <span class="ident">default_channels_to_render</span></code></dt>
 <dd>
 <div class="desc"><p>List of the default channels to render in a run or single plate rendering.</p></div>
@@ -173,6 +191,10 @@ Columns: [Channel number, Channel name, EX wavelength, RGB equivalence]</p></div
 <dt id="lumos.parameters.fingerprint_style_dict"><code class="name">var <span class="ident">fingerprint_style_dict</span></code></dt>
 <dd>
 <div class="desc"><p>Dictionary of the styles that can be used for "merge cell painting", and their associated coefficients.</p></div>
+</dd>
+<dt id="lumos.parameters.platemap_columns"><code class="name">var <span class="ident">platemap_columns</span></code></dt>
+<dd>
+<div class="desc"><p>Dictionary of the columns to be parsed from the platemap database.</p></div>
 </dd>
 </dl>
 </section>
@@ -194,12 +216,13 @@ Columns: [Channel number, Channel name, EX wavelength, RGB equivalence]</p></div
 </li>
 <li><h3><a href="#header-variables">Global variables</a></h3>
 <ul class="">
-<li><code><a title="lumos.parameters.accurate_style_parameters" href="#lumos.parameters.accurate_style_parameters">accurate_style_parameters</a></code></li>
-<li><code><a title="lumos.parameters.cellplainting_channels_dict" href="#lumos.parameters.cellplainting_channels_dict">cellplainting_channels_dict</a></code></li>
-<li><code><a title="lumos.parameters.cellplainting_channels_info" href="#lumos.parameters.cellplainting_channels_info">cellplainting_channels_info</a></code></li>
+<li><code><a title="lumos.parameters.cellpainting_channels_dict" href="#lumos.parameters.cellpainting_channels_dict">cellpainting_channels_dict</a></code></li>
+<li><code><a title="lumos.parameters.cellpainting_channels_info" href="#lumos.parameters.cellpainting_channels_info">cellpainting_channels_info</a></code></li>
 <li><code><a title="lumos.parameters.channel_coefficients" href="#lumos.parameters.channel_coefficients">channel_coefficients</a></code></li>
+<li><code><a title="lumos.parameters.classic_style_parameters" href="#lumos.parameters.classic_style_parameters">classic_style_parameters</a></code></li>
 <li><code><a title="lumos.parameters.default_channels_to_render" href="#lumos.parameters.default_channels_to_render">default_channels_to_render</a></code></li>
 <li><code><a title="lumos.parameters.fingerprint_style_dict" href="#lumos.parameters.fingerprint_style_dict">fingerprint_style_dict</a></code></li>
+<li><code><a title="lumos.parameters.platemap_columns" href="#lumos.parameters.platemap_columns">platemap_columns</a></code></li>
 </ul>
 </li>
 </ul>

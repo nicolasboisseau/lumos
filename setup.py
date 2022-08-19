@@ -1,13 +1,17 @@
+'''Setup module for packaging'''
+
 from setuptools import setup, find_packages
 
-with open("README.md", "r", encoding="utf-8") as fh:
+with open("readme.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = fh.read()
 
+VERSION_NUMBER = "0.0.4"
+
 setup(
     name='lumos',
-    version='0.0.3',
+    version=VERSION_NUMBER,
     author='DSDM - Institut De Recherches Servier',
     author_email='nicolas.boisseau@servier.com',
     license='NOLICENCE',
