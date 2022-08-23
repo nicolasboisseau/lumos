@@ -19,7 +19,6 @@ import pandas as pd
 
 from . import logger
 from . import toolbox
-from .config import get_config
 
 
 def create_temp_and_output_folders(temp_path, output_path, scope, plate_name, style):
@@ -67,6 +66,7 @@ def create_temp_and_output_folders(temp_path, output_path, scope, plate_name, st
 
 
 def colorizer(
+    config,
     site_df,
     rescale_ratio,
     style,
@@ -77,6 +77,7 @@ def colorizer(
     Merges input images from different channels into one RGB image.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     site_df (DataFrame): The table of all the image-info for the current site.
                     rescale_ratio (float): The ratio used to rescale the image before generation.
                     style (string): The name of the style being used to generate the colorized image.
@@ -114,9 +115,9 @@ def colorizer(
                            str(current_channel['fullpath']))
 
             # Create blank file if the image can't be loaded
-            height = int(get_config()['image_dimensions'].split(
+            height = int(config['image_dimensions'].split(
                 'x', maxsplit=1)[0])
-            width = int(get_config()['image_dimensions'].rsplit(
+            width = int(config['image_dimensions'].rsplit(
                 'x', maxsplit=1)[-1])
             img = np.full(shape=(height, width, 1),
                           fill_value=0,
@@ -142,8 +143,8 @@ def colorizer(
 
         # Add contrast to each layer according to coefficients
         for idx, current_channel in site_df.iterrows():
-            contrast_coef = get_config()['channel_info'][current_channel['channel']
-                                                         ]['cp_contrast']
+            contrast_coef = config['channel_info'][current_channel['channel']
+                                                   ]['cp_contrast']
 
             alpha_c = float(131 * (contrast_coef + 127)) / \
                 (127 * (131 - contrast_coef))
@@ -154,8 +155,8 @@ def colorizer(
 
         # Multiply the intensity of the channels by coefs
         for idx, current_channel in site_df.iterrows():
-            intensity_coef = get_config()['channel_info'][current_channel['channel']
-                                                          ]['cp_intensity']
+            intensity_coef = config['channel_info'][current_channel['channel']
+                                                    ]['cp_intensity']
 
             # Create a mask to check when value will overflow
             mask = (image_channels_array[idx] > (255 / intensity_coef)
@@ -169,7 +170,7 @@ def colorizer(
 
         # Combine the images according to their RGB coefficients
         for idx, current_channel in site_df.iterrows():
-            rgb_coef = get_config()[
+            rgb_coef = config[
                 'channel_info'][current_channel['channel']]['rgb']
             red_channel = red_channel + \
                 (image_channels_array[idx] / 255 * rgb_coef[0])
@@ -186,9 +187,9 @@ def colorizer(
     else:
 
         # Get the current style's parameters
-        intensity_coef = get_config()['fingerprint_style_dict'][style][0]
-        channel_order = get_config()['fingerprint_style_dict'][style][1]
-        target_rgb = get_config()['fingerprint_style_dict'][style][2]
+        intensity_coef = config['fingerprint_style_dict'][style][0]
+        channel_order = config['fingerprint_style_dict'][style][1]
+        target_rgb = config['fingerprint_style_dict'][style][2]
 
         # Randomly initiate coefficients for each channel if they are missing
         if len(intensity_coef) == 0 and len(channel_order) == 0 and len(target_rgb) == 0:
@@ -233,9 +234,9 @@ def colorizer(
                 target_rgb)
         else:
             intensities = [x.get('cp_intensity')
-                           for x in get_config()['channel_info'].values()]
+                           for x in config['channel_info'].values()]
             contrasts = [x.get('cp_contrast')
-                         for x in get_config()['channel_info'].values()]
+                         for x in config['channel_info'].values()]
             filtered_intensities = list(filter(None, intensities))
             filtered_contrasts = list(filter(None, contrasts))
             text = str(filtered_intensities) + ' - ' + str(filtered_contrasts)
@@ -257,6 +258,7 @@ def colorizer(
 
 
 def generate_multiplexed_well_images(
+    config,
     data_df,
     well_list,
     gen_image_output_folder,
@@ -271,6 +273,7 @@ def generate_multiplexed_well_images(
     Generates a colorized image from all 5 channels of a well, for all wells, and saves it in the temporary directory.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     data_df (Pandas DataFrame): Dataframe containing the paths to each channel, of each site, of each well.
                     well_list (string list): The list of wells to be generated
                     gen_image_output_folder (Path): The path to the folder where the images generated should be stored.
@@ -287,14 +290,15 @@ def generate_multiplexed_well_images(
 
     # Define the rescale ratio based on the scope
     if scope == 'wells':
-        rescale_ratio = get_config()['rescale_ratio_cp_wells']
+        rescale_ratio = config['rescale_ratio_cp_wells']
     elif scope == 'plate':
-        rescale_ratio = get_config()['rescale_ratio_cp_plate']
+        rescale_ratio = config['rescale_ratio_cp_plate']
     else:
         rescale_ratio = 1
 
     # Multiplex all well/site channels into 1 well/site 8bit colored image
-    well_progressbar = tqdm(well_list, unit="wells", leave=False, disable=not logger.ENABLED)
+    well_progressbar = tqdm(well_list, unit="wells",
+                            leave=False, disable=not logger.ENABLED)
     for current_well in well_progressbar:
         # For each well, generate the multiplexed images of its 6 sites
         current_well_sites_multiplexed_image_list = []
@@ -308,6 +312,7 @@ def generate_multiplexed_well_images(
 
             # Generate the multiplexed image of the current site
             multiplexed_site_image = colorizer(
+                config=config,
                 site_df=current_site_df.copy(),
                 rescale_ratio=rescale_ratio,
                 max_multiply_coef=8,
@@ -332,9 +337,9 @@ def generate_multiplexed_well_images(
 
             # Concatenate the site images into one well image
             nb_site_row = int(
-                get_config()['site_grid'].split('x', maxsplit=1)[0])
+                config['site_grid'].split('x', maxsplit=1)[0])
             nb_site_col = int(
-                get_config()['site_grid'].rsplit('x', maxsplit=1)[-1])
+                config['site_grid'].rsplit('x', maxsplit=1)[-1])
 
             current_well_image = toolbox.concatenate_images_in_grid(
                 current_well_sites_multiplexed_image_list,
@@ -349,10 +354,8 @@ def generate_multiplexed_well_images(
                 text = current_well
                 if platemap_path is not None:
                     # If the platemap is provided, extract all required columns
-                    pm_well_column = get_config(
-                    )['platemap_columns']['well_column_name']
-                    pm_id_column = get_config(
-                    )['platemap_columns']['id_column_name']
+                    pm_well_column = config['platemap_columns']['well_column_name']
+                    pm_id_column = config['platemap_columns']['id_column_name']
 
                     platemap_df = pd.read_csv(platemap_path,
                                               sep='\t',
@@ -409,13 +412,15 @@ def generate_multiplexed_well_images(
                 )
 
 
-def concatenate_well_images(well_list, temp_folder_path, output_format):
+def concatenate_well_images(config, well_list, temp_folder_path, output_format):
     '''
     Loads all temporary well images from the temporary directory and concatenates them into one image of the whole plate.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     well_list (string list): A list of all the well IDs (e.g. ['A01', 'A02', 'A03', ...]).
                     temp_folder_path (Path): The path to the folder where temporary data can be stored.
+                    output_format (string): The format/extension of the generated output images.
 
             Returns:
                     8-bit cv2 image: The concatenated image of all the wells
@@ -438,8 +443,8 @@ def concatenate_well_images(well_list, temp_folder_path, output_format):
     logger.info("Concatenate images into a plate..")
 
     # Concatenate all the well images into one plate image
-    nb_well_row = int(get_config()['well_grid'].split('x', maxsplit=1)[0])
-    nb_well_col = int(get_config()['well_grid'].rsplit('x', maxsplit=1)[-1])
+    nb_well_row = int(config['well_grid'].split('x', maxsplit=1)[0])
+    nb_well_col = int(config['well_grid'].rsplit('x', maxsplit=1)[-1])
 
     plate_image = toolbox.concatenate_images_in_grid(
         well_images, nb_well_row, nb_well_col)
@@ -448,6 +453,7 @@ def concatenate_well_images(well_list, temp_folder_path, output_format):
 
 
 def picasso_generate_plate_image(
+    config,
     source_path,
     plate_name,
     output_path,
@@ -463,6 +469,7 @@ def picasso_generate_plate_image(
     Generates cell-painted colorized images of individual wells or of a whole plate.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     source_path (Path): The folder where the input images of the plate are stored.
                     plate_name (string): The name of the plate being rendered.
                     output_path (Path): The path to the folder where the output images should be stored.
@@ -486,12 +493,12 @@ def picasso_generate_plate_image(
     created_folder = create_temp_and_output_folders(
         temp_folder_path, output_path, scope, plate_name, style)
 
-    channels_to_include = get_config()['cp_channels_to_use'] \
-        if style == 'classic' else list(get_config()['channel_info'].keys())[:5]
+    channels_to_include = config['cp_channels_to_use'] \
+        if style == 'classic' else list(config['channel_info'].keys())[:5]
 
     # Build a Table of the available images of the plate
     data_df = toolbox.build_input_images_df(
-        source_path, channels_to_include)
+        config, source_path, channels_to_include)
 
     # Get the list of wells to be rendered
     well_list = sorted(data_df["well"].unique())
@@ -509,6 +516,7 @@ def picasso_generate_plate_image(
 
     # Generate the Cell-painted well images
     generate_multiplexed_well_images(
+        config=config,
         data_df=data_df,
         well_list=well_list,
         gen_image_output_folder=created_folder,
@@ -526,7 +534,7 @@ def picasso_generate_plate_image(
     elif scope == 'plate':
         # Concatenate well images into a plate image
         plate_image = concatenate_well_images(
-            well_list, created_folder, output_format)
+            config, well_list, created_folder, output_format)
 
         # Save the concatenated image in the output folder
         plate_image_path = (
@@ -535,7 +543,7 @@ def picasso_generate_plate_image(
         cv2.imwrite(plate_image_path, plate_image)
 
         print(" -> Generated image of size:", plate_image.shape)
-        print(" -> Saved as ", plate_image_path)
+        print(" -> Saved as", plate_image_path)
 
         # Purge the temp files (only for plate)
         logger.info("Purge temporary folder")

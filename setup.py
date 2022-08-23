@@ -7,7 +7,7 @@ with open("readme.md", "r", encoding="utf-8") as fh:
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = fh.read()
 
-VERSION_NUMBER = "0.1"
+VERSION_NUMBER = "0.1.1"
 
 setup(
     # Information of the package
