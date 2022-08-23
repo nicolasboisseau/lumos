@@ -84,7 +84,7 @@ def test_qc_run_pipeline_with_config(fake_placeholder):
         # Run Lumos from CLI
         runner = CliRunner()
         result = runner.invoke(cli, ['-cf', config_absolute_path, 'qc', '--scope', 'run', '--source-path', sourcedir+'/'+run_name, '--output-path',
-                                     outputdir, '--output-format', output_format, '--brightfield', extra_channel, '--disable-logs'])
+                                     outputdir, '--output-format', output_format, '--brightfield', extra_channel, '--parallelism', '3', '--disable-logs'])
 
         # ASSERT
 

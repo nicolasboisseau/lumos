@@ -12,7 +12,6 @@ import click
 from art import text2art
 
 from lumos.config import (
-    get_config,
     load_config_string,
     load_config_file
 )
@@ -31,6 +30,9 @@ default_temp_directory = tempfile.gettempdir()
 
 # Define general constant parameters
 output_file_format_list = ['jpg', 'jpeg', 'png']
+
+# Define global variable for config in this file
+config = None
 
 
 # Setup command group
@@ -70,23 +72,27 @@ def cli(ctx, config_file, generate_config_file):
         # If the given path is a folder create a new file, otherwise overwrite the existing file
         if os.path.isdir(generate_config_file):
             generate_config_file = generate_config_file + '/lumos_config.yaml'
+
         # Copy content of default config file
         with open(generate_config_file, 'wb') as f:
             default_config_bytes = resource_string(
                 __name__, 'lumos/default_lumos_config.yaml')
             f.write(default_config_bytes)
+
         click.echo(
             "The template for the configuration file has been created in "+generate_config_file)
         sys.exit(0)
 
+    global config
+
     if config_file is not None:
         # Load the specified config file
-        load_config_file(config_file)
+        config = load_config_file(config_file)
     else:
         # Load the default config bundled with lumos
         default_config_string = resource_string(
             __name__, 'lumos/default_lumos_config.yaml').decode('utf-8')
-        load_config_string(default_config_string)
+        config = load_config_string(default_config_string)
 
     if ctx.invoked_subcommand is None:
         click.secho("Type 'lumos --help' to get started!", fg='bright_blue')
@@ -176,10 +182,16 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
     Quality Control operation mode - CLI entry
     '''
 
+    if config is None:
+        click.secho(
+            "CONFIG ERROR: A configuration could not be resolved. This should never happen. Please seek assistance.", fg='bright_red', bold=True)
+        sys.exit(1)
+
     is_in_parallel = (parallelism != 1)
 
     # create logger
-    logger.setup(temp_path, enabled=not disable_logs, parallelism=is_in_parallel)
+    logger.setup(temp_path, enabled=not disable_logs,
+                 parallelism=is_in_parallel)
 
     # announce startup to logger
     logger.info("Started - Quality Control")
@@ -191,7 +203,7 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
                 "CLI ERROR: '--parallelism' argument cannot be less than 1. Please remove it or change its value.", fg='bright_red', bold=True)
             sys.exit(1)
         click.secho(
-            "CLI WARNING: When using parallelism, pressing [CTRL+C] does not terminate the program. To halt the execution of the program before it finishes, you have to close your terminal.", fg='bright_yellow')
+            "CLI WARNING: When using parallelism, pressing [CTRL+C] might not terminate the program. To halt the execution of the program before it finishes, you have to close your terminal.", fg='bright_yellow')
         click.secho(
             "CLI INFO: When using parallelism, less progress information will be printed in the terminal.", fg='bright_magenta')
         click.echo()
@@ -202,7 +214,7 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
             "Argument '--keep-temp-files' used from CLI: keeping previously downloaded temporary files")
 
     if output_format is None:
-        output_format = get_config()['default_output_format']
+        output_format = config['default_output_format']
 
     # decode scope
     if scope == "channel":
@@ -212,9 +224,9 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
                 "CLI ERROR: Missing channel. Please define a channel using '--channel' <channel_name>.", fg='bright_red', bold=True)
             sys.exit(1)
 
-        if channel not in list(get_config()['channel_info'].keys()):
+        if channel not in list(config['channel_info'].keys()):
             click.secho(
-                f"CLI ERROR: Wrong channel chosen. Please choose one amongst {list(get_config()['channel_info'].keys())}.", fg='bright_red', bold=True)
+                f"CLI ERROR: Wrong channel chosen. Please choose one amongst {list(config['channel_info'].keys())}.", fg='bright_red', bold=True)
             sys.exit(1)
 
         if is_in_parallel:
@@ -231,7 +243,7 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
             + plate_name,
         )
         # get channel name
-        channel_name = get_config()['channel_info'][channel]['name']
+        channel_name = config['channel_info'][channel]['name']
         click.echo(
             "Render channel: "
             + channel
@@ -241,6 +253,7 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
 
         # render the channel for the plate
         render_single_channel_plateview(
+            config,
             source_path,
             plate_name,
             channel,
@@ -258,18 +271,18 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
                 "CLI ERROR: '--channel' argument must not be used for run/plate scope. Please remove it.", fg='bright_red', bold=True)
             sys.exit(1)
 
-        channels_to_render = get_config()['default_channels_to_render'].copy()
+        channels_to_render = config['default_channels_to_render'].copy()
         if brightfield is None:
             click.secho(
                 "CLI Note: Generating render for NONE of the brightfield channels.", fg='bright_blue')
         elif brightfield == "all":
             channels_to_render = channels_to_render + \
-                get_config()['brightfield_channels']
+                config['brightfield_channels']
             click.secho(
                 "CLI Note: Generating renders for ALL brightfield channels.", fg='bright_blue')
-        elif brightfield not in get_config()['brightfield_channels']:
+        elif brightfield not in config['brightfield_channels']:
             click.secho(
-                f"CLI ERROR: Wrong brightfield channel chosen. Please choose one amongst {get_config()['brightfield_channels']}.", fg='bright_red', bold=True)
+                f"CLI ERROR: Wrong brightfield channel chosen. Please choose one amongst {config['brightfield_channels']}.", fg='bright_red', bold=True)
             sys.exit(1)
         else:
             channels_to_render.append(brightfield)
@@ -287,22 +300,22 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
 
             # get plates and their path, only if files in it
             plate_list = list(Path(source_path).glob(
-                f"./{get_config()['path_from_run_folder_to_plates']}/*"))
+                f"./{config['path_from_run_folder_to_plates']}/*"))
 
             # create a dict with plate name as key and plate folder path as value
             # only folders with tif images are eligible
             plate_dict = {
                 x.name: x
                 for x in plate_list
-                if (x.is_dir() and len(list(x.glob(f"./{get_config()['path_from_plate_folder_to_images']}/*.tif*"))))
+                if (x.is_dir() and len(list(x.glob(f"./{config['path_from_plate_folder_to_images']}/*.tif*"))))
             }
 
             if len(plate_dict) == 0:
                 click.secho("ERROR: No valid plates found in run folder.",
                             color='bright_red')
                 click.secho("       Make sure that your folder structure matches your configuration. "
-                            + f"The current configuration is: <run_folder>/{get_config()['path_from_run_folder_to_plates']}"
-                            + f"<plate_folders>/{get_config()['path_from_plate_folder_to_images']}<images>",
+                            + f"The current configuration is: <run_folder>/{config['path_from_run_folder_to_plates']}"
+                            + f"<plate_folders>/{config['path_from_plate_folder_to_images']}<images>",
                             color='bright_red')
                 logger.error("No valid plates found in run folder")
                 sys.exit(1)
@@ -323,6 +336,7 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
 
             # render all the plates of the run
             render_single_run_plateview(
+                config,
                 plate_dict,
                 channels_to_render,
                 output_path,
@@ -346,6 +360,7 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
             # render all the channels of the plate
             if not is_in_parallel:
                 render_single_plate_plateview(
+                    config,
                     source_path,
                     plate_name,
                     channels_to_render,
@@ -356,6 +371,7 @@ def quality_control(scope, channel, source_path, output_path, temp_path, output_
                 )
             else:
                 render_single_plate_plateview_parallelism(
+                    config,
                     source_path,
                     plate_name,
                     channels_to_render,
@@ -460,15 +476,15 @@ def cell_painting(scope, single_well, source_path, output_path, temp_path, plate
     # get platename
     plate_name = Path(source_path).name
 
-    if style not in list(get_config()['fingerprint_style_dict'].keys()):
+    if style not in list(config['fingerprint_style_dict'].keys()):
         click.secho(
-            f"CLI ERROR: The chosen style does not exist. Please choose one amongst {list(get_config()['fingerprint_style_dict'].keys())}.",
+            f"CLI ERROR: The chosen style does not exist. Please choose one amongst {list(config['fingerprint_style_dict'].keys())}.",
             fg='bright_red', bold=True
         )
         sys.exit(1)
 
     if output_format is None:
-        output_format = get_config()['default_output_format']
+        output_format = config['default_output_format']
 
     if platemap_path is not None and scope == 'sites':
         click.secho("CLI WARNING: The '--platemap-path' argument has no effect when scope is 'sites' and should not be specified. Consider removing it.", fg='bright_yellow')
@@ -479,8 +495,8 @@ def cell_painting(scope, single_well, source_path, output_path, temp_path, plate
             "Process wells of plate: "
             + plate_name
             + " and multiplex cell painting channels "
-            + str(get_config()['cp_channels_to_use'] if style ==
-                  'classic' else list(get_config()['channel_info'].keys())[:5])
+            + str(config['cp_channels_to_use'] if style ==
+                  'classic' else list(config['channel_info'].keys())[:5])
         )
     elif scope != 'plate':
         single_well = single_well.upper()
@@ -490,8 +506,8 @@ def cell_painting(scope, single_well, source_path, output_path, temp_path, plate
             + " of plate: "
             + plate_name
             + " and multiplex cell painting channels "
-            + str(get_config()['cp_channels_to_use'] if style ==
-                  'classic' else list(get_config()['channel_info'].keys())[:5])
+            + str(config['cp_channels_to_use'] if style ==
+                  'classic' else list(config['channel_info'].keys())[:5])
         )
     else:
         logger.error(
@@ -504,6 +520,7 @@ def cell_painting(scope, single_well, source_path, output_path, temp_path, plate
 
     # multiplex the channels of the plate (not brightfield) into a single RGB image
     picasso_generate_plate_image(
+        config,
         source_path,
         plate_name,
         output_path,

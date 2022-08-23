@@ -13,15 +13,15 @@ import cv2
 import pandas as pd
 
 from . import logger
-from .config import get_config
 
 
-def build_input_images_df(plate_input_path, selected_channels):
+def build_input_images_df(config, plate_input_path, selected_channels):
     '''
     Scans the input plate folder to build a table of all the available images for the selected channels.
     It handles nested files that match the folder structure specified by the user in the configuration.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     plate_input_path (Path): A path to a plate folder.
                     selected_channels (string list): A list of all the channels IDs to be included in the DF.
 
@@ -38,7 +38,7 @@ def build_input_images_df(plate_input_path, selected_channels):
 
         current_channel_images = list(
             Path(plate_input_path).glob(
-                f"./{get_config()['path_from_plate_folder_to_images']}/*{current_channel}*.tif*")
+                f"./{config['path_from_plate_folder_to_images']}/*{current_channel}*.tif*")
         )
 
         if len(current_channel_images) == 0:
@@ -47,7 +47,7 @@ def build_input_images_df(plate_input_path, selected_channels):
             logger.err_print("       Make sure that you have configured the channel IDs to be the same as they appear in your file names.",
                              color='bright_red')
             logger.err_print("       Also make sure you that your folder structure matches your path-to-images configuration. "
-                             + f"The current configuration is: <plate_folder>/{get_config()['path_from_plate_folder_to_images']}<images>",
+                             + f"The current configuration is: <plate_folder>/{config['path_from_plate_folder_to_images']}<images>",
                              color='bright_red')
             logger.error("No files found when building dataframe")
             sys.exit(1)
@@ -65,15 +65,15 @@ def build_input_images_df(plate_input_path, selected_channels):
     images_filename_list = [str(x.name) for x in images_full_path_list]
 
     # Get the grid patterns from config
-    nb_site_row = int(get_config()['site_grid'].split('x', maxsplit=1)[0])
-    nb_site_col = int(get_config()['site_grid'].rsplit('x', maxsplit=1)[-1])
+    nb_site_row = int(config['site_grid'].split('x', maxsplit=1)[0])
+    nb_site_col = int(config['site_grid'].rsplit('x', maxsplit=1)[-1])
     nb_site = nb_site_row * nb_site_col
 
-    nb_well_row = int(get_config()['well_grid'].split('x', maxsplit=1)[0])
-    nb_well_col = int(get_config()['well_grid'].rsplit('x', maxsplit=1)[-1])
+    nb_well_row = int(config['well_grid'].split('x', maxsplit=1)[0])
+    nb_well_col = int(config['well_grid'].rsplit('x', maxsplit=1)[-1])
     nb_well = nb_well_row * nb_well_col
 
-    if get_config()['input_file_naming_scheme'] == 'letter_wells':
+    if config['input_file_naming_scheme'] == 'letter_wells':
         # Extract the metadata of the images from their name
         try:
             # Extract the available wells list
@@ -89,10 +89,10 @@ def build_input_images_df(plate_input_path, selected_channels):
                                   for x in images_filename_list]
         except IndexError:
             logger.err_print("ERROR: File names do not follow the chosen INPUT_FILE_NAMING_SCHEME '" +
-                             get_config()['input_file_naming_scheme']+"'",
+                             config['input_file_naming_scheme']+"'",
                              color='bright_red')
             logger.error("File names do not follow the chosen INPUT_FILE_NAMING_SCHEME '" +
-                         get_config()['input_file_naming_scheme']+"'")
+                         config['input_file_naming_scheme']+"'")
             sys.exit(1)
 
         # Compute the theoretical reference well list for a standard plate
@@ -105,7 +105,7 @@ def build_input_images_df(plate_input_path, selected_channels):
             [w, s, c] for w in reference_well_list for s in range(1, nb_site+1) for c in selected_channels
         ]
 
-    elif get_config()['input_file_naming_scheme'] == 'rows_and_columns':
+    elif config['input_file_naming_scheme'] == 'rows_and_columns':
         # Extract the metadata of the images from their name
         try:
             # Extract the available wells list
@@ -122,10 +122,10 @@ def build_input_images_df(plate_input_path, selected_channels):
 
         except IndexError:
             logger.err_print("ERROR: File names do not follow the chosen INPUT_FILE_NAMING_SCHEME '" +
-                             get_config()['input_file_naming_scheme']+"'",
+                             config['input_file_naming_scheme']+"'",
                              color='bright_red')
             logger.error("File names do not follow the chosen INPUT_FILE_NAMING_SCHEME '" +
-                         get_config()['input_file_naming_scheme']+"'")
+                         config['input_file_naming_scheme']+"'")
             sys.exit(1)
 
         # Compute the theoretical reference well list for a standard plate
@@ -140,10 +140,10 @@ def build_input_images_df(plate_input_path, selected_channels):
 
     else:
         logger.err_print("ERROR: Non-valid INPUT_FILE_NAMING_SCHEME '" +
-                         get_config()['input_file_naming_scheme']+"'",
+                         config['input_file_naming_scheme']+"'",
                          color='bright_red')
         logger.error("Non-valid INPUT_FILE_NAMING_SCHEME '" +
-                     get_config()['input_file_naming_scheme']+"'")
+                     config['input_file_naming_scheme']+"'")
         sys.exit(1)
 
     # Zip all the data of the channel images together

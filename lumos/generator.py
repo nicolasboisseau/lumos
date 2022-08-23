@@ -19,10 +19,10 @@ import numpy as np
 
 from . import toolbox
 from . import logger
-from .config import get_config
 
 
 def generate_plate_image_for_channel(
+    config,
     plate_input_path,
     plate_name,
     channel_to_render,
@@ -35,6 +35,7 @@ def generate_plate_image_for_channel(
     Generates an image of a cellpainting plate for a specific channel.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     plate_images_folder_path (Path): The path to the folder where the images of the plate are stored.
                     plate_name (string): Name of the plate.
                     channel_to_render (string): The cellpainting channel to render.
@@ -64,6 +65,7 @@ def generate_plate_image_for_channel(
 
     # Build a Table of the available images of the plate for the selected channel
     image_df = toolbox.build_input_images_df(
+        config,
         plate_input_path,
         [channel_to_render],
     )
@@ -148,8 +150,8 @@ def generate_plate_image_for_channel(
                 img = cv2.resize(
                     src=img,
                     dsize=None,
-                    fx=get_config()['rescale_ratio_qc'],
-                    fy=get_config()['rescale_ratio_qc'],
+                    fx=config['rescale_ratio_qc'],
+                    fy=config['rescale_ratio_qc'],
                     interpolation=cv2.INTER_CUBIC,
                 )
                 # Convert to 8 bit
@@ -157,8 +159,7 @@ def generate_plate_image_for_channel(
                 img = img.astype("uint8")
                 # Normalize the intensity of each channel by a specific coefficient
                 # Create a mask to check when value will overflow
-                intensity_coef = get_config(
-                )['channel_info'][channel_to_render]['qc_coef']
+                intensity_coef = config['channel_info'][channel_to_render]['qc_coef']
                 mask = (img > (255 / intensity_coef)
                         ) if intensity_coef != 0 else False
                 # Clip the result to be in [0;255] if overflow
@@ -169,26 +170,26 @@ def generate_plate_image_for_channel(
                                current_well + " (site " + str(current_site) + ")")
 
                 # Create placeholder image if an error occurs
-                height = int(get_config()['image_dimensions'].split(
+                height = int(config['image_dimensions'].split(
                     'x', maxsplit=1)[0])
-                width = int(get_config()['image_dimensions'].rsplit(
+                width = int(config['image_dimensions'].rsplit(
                     'x', maxsplit=1)[-1])
                 img = np.full(
-                    shape=(int(height*get_config()['rescale_ratio_qc']),
-                           int(width*get_config()['rescale_ratio_qc']), 1),
-                    fill_value=get_config()[
+                    shape=(int(height*config['rescale_ratio_qc']),
+                           int(width*config['rescale_ratio_qc']), 1),
+                    fill_value=config[
                         'placeholder_background_intensity'],
                     dtype=np.uint8
                 )
                 img = toolbox.draw_markers(
-                    img, get_config()['placeholder_markers_intensity'])
+                    img, config['placeholder_markers_intensity'])
 
             image_list.append(img)
 
         # Concatenate the site images horizontally and vertically
-        nb_site_row = int(get_config()['site_grid'].split('x', maxsplit=1)[0])
+        nb_site_row = int(config['site_grid'].split('x', maxsplit=1)[0])
         nb_site_col = int(
-            get_config()['site_grid'].rsplit('x', maxsplit=1)[-1])
+            config['site_grid'].rsplit('x', maxsplit=1)[-1])
 
         well_image = toolbox.concatenate_images_in_grid(
             image_list, nb_site_row, nb_site_col)
@@ -199,12 +200,12 @@ def generate_plate_image_for_channel(
         cv2.putText(
             well_image,
             text,
-            (math.ceil(25*get_config()['rescale_ratio_qc']),
-             math.ceil(125*get_config()['rescale_ratio_qc'])),
+            (math.ceil(25*config['rescale_ratio_qc']),
+             math.ceil(125*config['rescale_ratio_qc'])),
             font,
-            4*get_config()['rescale_ratio_qc'],
+            4*config['rescale_ratio_qc'],
             (192, 192, 192),
-            math.ceil(8*get_config()['rescale_ratio_qc']),
+            math.ceil(8*config['rescale_ratio_qc']),
             cv2.INTER_AREA,
         )
 
@@ -245,8 +246,8 @@ def generate_plate_image_for_channel(
     logger.info("Concatenating well images into a plate..")
 
     # Concatenate all the well images into one plate image
-    nb_well_row = int(get_config()['well_grid'].split('x', maxsplit=1)[0])
-    nb_well_col = int(get_config()['well_grid'].rsplit('x', maxsplit=1)[-1])
+    nb_well_row = int(config['well_grid'].split('x', maxsplit=1)[0])
+    nb_well_col = int(config['well_grid'].rsplit('x', maxsplit=1)[-1])
 
     plate_image = toolbox.concatenate_images_in_grid(
         well_images, nb_well_row, nb_well_col)
@@ -262,12 +263,13 @@ def generate_plate_image_for_channel(
 
 
 def render_single_channel_plateview(
-    source_path, plate_name, channel_to_render, channel_label, output_path, temp_folder_path, output_format, keep_temp_files
+    config, source_path, plate_name, channel_to_render, channel_label, output_path, temp_folder_path, output_format, keep_temp_files
 ):
     '''
     Renders 1 image for a specific channel of a plate.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     source_path (Path): The path to the folder where the images of the plate are stored.
                     plate_name (string): Name of the plate.
                     channel_to_render (string): The name of the channel to render.
@@ -283,6 +285,7 @@ def render_single_channel_plateview(
 
     # Generate cv2 image for the channel
     plate_image = generate_plate_image_for_channel(
+        config,
         source_path,
         plate_name,
         channel_to_render,
@@ -303,14 +306,15 @@ def render_single_channel_plateview(
     plate_image_path = (
         output_path
         + f"/{plate_name}-{channel_to_render}-"
-        + f"{get_config()['channel_info'][channel_to_render]['qc_coef']}"
+        + f"{config['channel_info'][channel_to_render]['qc_coef']}"
         + f".{output_format}"
     )
     cv2.imwrite(plate_image_path, plate_image)
-    logger.p_print(" -> Saved as " + plate_image_path)
+    print(" -> Saved as " + plate_image_path)
 
 
 def render_single_plate_plateview(
+    config,
     source_path,
     plate_name,
     channel_list,
@@ -323,6 +327,7 @@ def render_single_plate_plateview(
     Renders 1 image per channel for a specific plate.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     source_path (Path): The path to the folder where the images of the plate are stored.
                     plate_name (string): Name of the plate.
                     channel_list (string list): The list of the channels to render.
@@ -343,13 +348,14 @@ def render_single_plate_plateview(
         disable=logger.PARALLELISM or not logger.ENABLED,
     ):
         # Get the current channel's label
-        channel_label = get_config()['channel_info'][current_channel]['name']
+        channel_label = config['channel_info'][current_channel]['name']
 
         logger.p_print(os.linesep)
         logger.p_print("Generate " + current_channel +
                        " - " + channel_label + os.linesep)
 
         render_single_channel_plateview(
+            config,
             source_path,
             plate_name,
             current_channel,
@@ -362,6 +368,7 @@ def render_single_plate_plateview(
 
 
 def render_single_plate_plateview_parallelism(
+    config,
     source_path,
     plate_name,
     channel_list,
@@ -375,6 +382,7 @@ def render_single_plate_plateview_parallelism(
     Renders, in parallel, 1 image per channel for a specific plate.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     source_path (Path): The path to the folder where the images of the plate are stored.
                     plate_name (string): Name of the plate.
                     channel_list (string list): The list of the channels to render.
@@ -394,10 +402,10 @@ def render_single_plate_plateview_parallelism(
     try:
         for current_channel in channel_list:
             # Get the current channel's label
-            channel_label = get_config(
-            )['channel_info'][current_channel]['name']
+            channel_label = config['channel_info'][current_channel]['name']
 
             pool.apply_async(render_single_channel_plateview, args=(
+                config,
                 source_path,
                 plate_name,
                 current_channel,
@@ -419,6 +427,7 @@ def render_single_plate_plateview_parallelism(
 
 
 def render_single_run_plateview(
+    config,
     source_folder_dict,
     channel_list,
     output_path,
@@ -431,6 +440,7 @@ def render_single_run_plateview(
     Renders images for all plates of a run. Compatible with parallelism.
 
             Parameters:
+                    config (dict): The current configuration dictionary.
                     source_folder_dict (dict): A dictionary of the name of the plates and their respective path.
                     channel_list (string list): The list of the channels to render for all plates.
                     output_path (Path): The folder where to save the generated image.
@@ -455,6 +465,7 @@ def render_single_run_plateview(
         # Render all the channels of the plate
         if parallelism == 1:
             render_single_plate_plateview(
+                config,
                 source_folder_dict[current_plate],
                 current_plate,
                 channel_list,
@@ -465,6 +476,7 @@ def render_single_run_plateview(
             )
         else:
             render_single_plate_plateview_parallelism(
+                config,
                 source_folder_dict[current_plate],
                 current_plate,
                 channel_list,
