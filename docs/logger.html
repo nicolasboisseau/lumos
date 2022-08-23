@@ -33,29 +33,36 @@
 &#39;&#39;&#39;
 Logger functions for lumos.
 &#39;&#39;&#39;
-from logging.handlers import RotatingFileHandler
-import logging
 import os
+import logging
+from logging.handlers import RotatingFileHandler
+
+import click
 
 
-# State variable to know if the current lumos session is using parallelism
-IS_IN_PARALLEL = True
+# State variable to know if the logger is enabled
+ENABLED = False
+# State variable to know if parallelism is enabled
+PARALLELISM = False
 
 
-def setup(temp_directory, is_in_parallel):
+def setup(temp_directory, enabled, parallelism):
     &#39;&#39;&#39;
     Sets-up the logger inside of the working temporary directory. If parallelism is enabled, no logs are stored (they will be printed to the console by default).
 
             Parameters:
                     temp_directory (Path): The path to the temporary directory.
+                    enabled (bool): Whether or not the logger is enabled.
                     parallelism (bool): Whether or not parallel computation is enabled for the current run of the program.
     &#39;&#39;&#39;
 
-    # Set the global state variable of the module
-    global IS_IN_PARALLEL
-    IS_IN_PARALLEL = is_in_parallel
+    # Set the global state variables of the module
+    global ENABLED
+    global PARALLELISM
+    ENABLED = enabled
+    PARALLELISM = parallelism
 
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
 
         # Define log format
         log_formatter = logging.Formatter(
@@ -68,7 +75,7 @@ def setup(temp_directory, is_in_parallel):
         my_handler = RotatingFileHandler(
             temp_directory + &#34;/lumos.log&#34;,
             mode=&#39;a&#39;,
-            maxBytes=2*1024*1024,
+            maxBytes=10*1024*1024,
             backupCount=2,
             encoding=None,
             delay=0
@@ -81,20 +88,31 @@ def setup(temp_directory, is_in_parallel):
         app_log.addHandler(my_handler)
 
     else:
-        # Don&#39;t log anything, as it is not compatible with multiprocessing
+        # Don&#39;t log anything, as the logger is disabled
         pass
 
 
-def p_print(text, end=os.linesep):
+def p_print(text, newline=True, color=None):
     &#39;&#39;&#39;
     Parallel print: Handles printing to the console, according to if parallelism is being used or not.
 
             Parameters:
                     text (string): The text to be printed.
-                    end (string): What the separating character at the end of the print should be.
+                    newline (bool): If there should be a newline after the message.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
-        print(text, end=end)
+    if ENABLED and not PARALLELISM:
+        click.secho(text, nl=newline, fg=color)
+
+
+def err_print(text, newline=True, color=&#39;bright_red&#39;):
+    &#39;&#39;&#39;
+    Error print: Handles error printing to the console, no matter if parallelism is being used or not.
+
+            Parameters:
+                    text (string): The text to be printed.
+                    newline (bool): If there should be a newline after the message.
+    &#39;&#39;&#39;
+    click.secho(text, nl=newline, fg=color)
 
 
 def debug(text):
@@ -104,7 +122,7 @@ def debug(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).debug(text)
 
 
@@ -115,7 +133,7 @@ def info(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).info(text)
 
 
@@ -126,7 +144,7 @@ def warning(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).warning(text)
 
 
@@ -137,7 +155,7 @@ def error(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).error(text)
 
 
@@ -148,7 +166,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).critical(text)</code></pre>
 </details>
 </section>
@@ -178,7 +196,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).critical(text)</code></pre>
 </details>
 </dd>
@@ -201,8 +219,32 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).debug(text)</code></pre>
+</details>
+</dd>
+<dt id="lumos.logger.err_print"><code class="name flex">
+<span>def <span class="ident">err_print</span></span>(<span>text, newline=True, color='bright_red')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Error print: Handles error printing to the console, no matter if parallelism is being used or not.</p>
+<pre><code>    Parameters:
+            text (string): The text to be printed.
+            newline (bool): If there should be a newline after the message.
+</code></pre></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def err_print(text, newline=True, color=&#39;bright_red&#39;):
+    &#39;&#39;&#39;
+    Error print: Handles error printing to the console, no matter if parallelism is being used or not.
+
+            Parameters:
+                    text (string): The text to be printed.
+                    newline (bool): If there should be a newline after the message.
+    &#39;&#39;&#39;
+    click.secho(text, nl=newline, fg=color)</code></pre>
 </details>
 </dd>
 <dt id="lumos.logger.error"><code class="name flex">
@@ -224,7 +266,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).error(text)</code></pre>
 </details>
 </dd>
@@ -247,62 +289,66 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).info(text)</code></pre>
 </details>
 </dd>
 <dt id="lumos.logger.p_print"><code class="name flex">
-<span>def <span class="ident">p_print</span></span>(<span>text, end='\r\n')</span>
+<span>def <span class="ident">p_print</span></span>(<span>text, newline=True, color=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Parallel print: Handles printing to the console, according to if parallelism is being used or not.</p>
 <pre><code>    Parameters:
             text (string): The text to be printed.
-            end (string): What the separating character at the end of the print should be.
+            newline (bool): If there should be a newline after the message.
 </code></pre></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def p_print(text, end=os.linesep):
+<pre><code class="python">def p_print(text, newline=True, color=None):
     &#39;&#39;&#39;
     Parallel print: Handles printing to the console, according to if parallelism is being used or not.
 
             Parameters:
                     text (string): The text to be printed.
-                    end (string): What the separating character at the end of the print should be.
+                    newline (bool): If there should be a newline after the message.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
-        print(text, end=end)</code></pre>
+    if ENABLED and not PARALLELISM:
+        click.secho(text, nl=newline, fg=color)</code></pre>
 </details>
 </dd>
 <dt id="lumos.logger.setup"><code class="name flex">
-<span>def <span class="ident">setup</span></span>(<span>temp_directory, is_in_parallel)</span>
+<span>def <span class="ident">setup</span></span>(<span>temp_directory, enabled, parallelism)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Sets-up the logger inside of the working temporary directory. If parallelism is enabled, no logs are stored (they will be printed to the console by default).</p>
 <pre><code>    Parameters:
             temp_directory (Path): The path to the temporary directory.
+            enabled (bool): Whether or not the logger is enabled.
             parallelism (bool): Whether or not parallel computation is enabled for the current run of the program.
 </code></pre></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def setup(temp_directory, is_in_parallel):
+<pre><code class="python">def setup(temp_directory, enabled, parallelism):
     &#39;&#39;&#39;
     Sets-up the logger inside of the working temporary directory. If parallelism is enabled, no logs are stored (they will be printed to the console by default).
 
             Parameters:
                     temp_directory (Path): The path to the temporary directory.
+                    enabled (bool): Whether or not the logger is enabled.
                     parallelism (bool): Whether or not parallel computation is enabled for the current run of the program.
     &#39;&#39;&#39;
 
-    # Set the global state variable of the module
-    global IS_IN_PARALLEL
-    IS_IN_PARALLEL = is_in_parallel
+    # Set the global state variables of the module
+    global ENABLED
+    global PARALLELISM
+    ENABLED = enabled
+    PARALLELISM = parallelism
 
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
 
         # Define log format
         log_formatter = logging.Formatter(
@@ -315,7 +361,7 @@ def critical(text):
         my_handler = RotatingFileHandler(
             temp_directory + &#34;/lumos.log&#34;,
             mode=&#39;a&#39;,
-            maxBytes=2*1024*1024,
+            maxBytes=10*1024*1024,
             backupCount=2,
             encoding=None,
             delay=0
@@ -328,7 +374,7 @@ def critical(text):
         app_log.addHandler(my_handler)
 
     else:
-        # Don&#39;t log anything, as it is not compatible with multiprocessing
+        # Don&#39;t log anything, as the logger is disabled
         pass</code></pre>
 </details>
 </dd>
@@ -351,7 +397,7 @@ def critical(text):
             Parameters:
                     text (string): The message to be stored.
     &#39;&#39;&#39;
-    if not IS_IN_PARALLEL:
+    if ENABLED and not PARALLELISM:
         logging.getLogger(&#39;root&#39;).warning(text)</code></pre>
 </details>
 </dd>
@@ -375,6 +421,7 @@ def critical(text):
 <ul class="two-column">
 <li><code><a title="lumos.logger.critical" href="#lumos.logger.critical">critical</a></code></li>
 <li><code><a title="lumos.logger.debug" href="#lumos.logger.debug">debug</a></code></li>
+<li><code><a title="lumos.logger.err_print" href="#lumos.logger.err_print">err_print</a></code></li>
 <li><code><a title="lumos.logger.error" href="#lumos.logger.error">error</a></code></li>
 <li><code><a title="lumos.logger.info" href="#lumos.logger.info">info</a></code></li>
 <li><code><a title="lumos.logger.p_print" href="#lumos.logger.p_print">p_print</a></code></li>

@@ -1,22 +1,31 @@
 '''
-Test 3
+Pipeline test 3
 '''
 
 import os
 import tempfile
 import pytest
 import cv2
+import yaml
 import numpy as np
 
 from click.testing import CliRunner
 
-import lumos.parameters
 import lumos.toolbox
 import lumos.generator
+import lumos.config
 from lumoscli import cli
 
 
-def test_cp_pipeline():
+config_relative_path = '../../lumos/default_lumos_config.yaml'
+
+package_directory = os.path.dirname(os.path.abspath(__file__))
+config_absolute_path = os.path.join(package_directory, config_relative_path)
+with open(config_absolute_path, 'r', encoding="utf-8") as file:
+    config = yaml.safe_load(file)
+
+
+def test_cp_plate_pipeline():
     '''
     Test that the Cell-Painting operation mode of Lumos can return a valid image.
     '''
@@ -25,11 +34,13 @@ def test_cp_pipeline():
 
         # ACT
 
-        plate_name = "DestTestQC"
+        plate_name = "DestTestCP"
         output_format = 'jpg'
         style = "classic"
         fill_value = 65535
-        img = np.full((1000, 1000, 1), fill_value, np.uint16)
+        height = int(config['image_dimensions'].split('x', maxsplit=1)[0])
+        width = int(config['image_dimensions'].rsplit('x', maxsplit=1)[-1])
+        img = np.full((height, width, 1), fill_value, np.uint16)
 
         try:
             os.mkdir(sourcedir+'/'+plate_name)
@@ -60,11 +71,12 @@ def test_cp_pipeline():
         # Run Lumos from CLI
         runner = CliRunner()
         result = runner.invoke(cli, ['cp', '--scope', 'plate', '--source-path', sourcedir+'/'+plate_name, '--output-path',
-                                     outputdir, '--output-format', output_format, '--style', style])
+                                     outputdir, '--output-format', output_format, '--style', style, '--disable-logs'])
 
         # ASSERT
 
         # Assert that Lumos terminated without errors
+        print(result.output)
         assert result.exit_code == 0
 
         # Assert that there is an output
@@ -77,15 +89,25 @@ def test_cp_pipeline():
         try:
             output_image = cv2.imread(output_image_path)
         except Exception as exc:
-            assert False, f"Exception occured when loading output image: {exc}"
+            assert False, f"Exception occurred when loading output image: {exc}"
 
         # Assert that the output has the expected shape
-        expected_width = int(
-            3000 * 24 * lumos.parameters.rescale_ratio_picasso_plate)
+        src_img_height = int(
+            config['image_dimensions'].split('x', maxsplit=1)[0])
+        src_img_width = int(
+            config['image_dimensions'].rsplit('x', maxsplit=1)[-1])
+        site_grid_row = int(config['site_grid'].split('x', maxsplit=1)[0])
+        site_grid_col = int(config['site_grid'].rsplit('x', maxsplit=1)[-1])
+        well_grid_row = int(config['well_grid'].split('x', maxsplit=1)[0])
+        well_grid_col = int(config['well_grid'].rsplit('x', maxsplit=1)[-1])
+
         expected_height = int(
-            2000 * 16 * lumos.parameters.rescale_ratio_picasso_plate)
-        assert output_image.shape == (expected_height, expected_width, 3)
+            src_img_height * config['rescale_ratio_cp_plate'] * site_grid_row * well_grid_row)
+        expected_width = int(
+            src_img_width * config['rescale_ratio_cp_plate'] * site_grid_col * well_grid_col)
+
+        assert output_image.shape == (
+            expected_height, expected_width, 3)
 
         # Uncomment the following line to save the generated test output:
-        # cv2.imwrite(tempfile.gettempdir()+"/DestTestCP_output_" +
-        #             style+".tif", output_image)
+        # cv2.imwrite(tempfile.gettempdir()+f"/{plate_name}_output_"+style+".png", output_image)

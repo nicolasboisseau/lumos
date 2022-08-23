@@ -35,24 +35,24 @@ Main functions to generate platemaps with lumos.
 &#39;&#39;&#39;
 
 import os
+import sys
 import math
 import multiprocessing
 import platform
 import shutil
-from pathlib import Path
+
 
 import cv2
-import pandas as pd
 from tqdm import tqdm
 import numpy as np
 
 from . import toolbox
 from . import logger
-from . import parameters
+from .config import get_config
 
 
 def generate_plate_image_for_channel(
-    plate_input_path_string,
+    plate_input_path,
     plate_name,
     channel_to_render,
     channel_label,
@@ -77,13 +77,13 @@ def generate_plate_image_for_channel(
     &#39;&#39;&#39;
 
     # Define a temp folder for the run
-    temp_folder = temp_folder + &#34;/lumos-tmpgen-&#34; + plate_name + channel_to_render
+    temp_folder = temp_folder + &#34;/lumos-tmpgen-&#34; + \
+        plate_name + &#39;-&#39; + channel_to_render
 
     # Remove temp dir if existing
     if not keep_temp_files:
         logger.debug(&#34;Purge temporary folder before plate generation&#34;)
         shutil.rmtree(temp_folder, ignore_errors=True)
-
     # Create the temporary directory structure to work on images
     try:
         os.mkdir(temp_folder)
@@ -91,26 +91,11 @@ def generate_plate_image_for_channel(
     except FileExistsError:
         pass
 
-    # Read the plate input path
-    plate_input_path = Path(plate_input_path_string)
-
-    # Get the files from the plate folder, for the targeted channel
-    images_full_path_list = list(
-        Path(plate_input_path).glob(&#34;*&#34; + channel_to_render + &#34;.tif&#34;)
+    # Build a Table of the available images of the plate for the selected channel
+    image_df = toolbox.build_input_images_df(
+        plate_input_path,
+        [channel_to_render],
     )
-
-    # Check that we get 2304 images for a 384 well image
-    try:
-        assert len(images_full_path_list) == 2304
-    except AssertionError:
-        logger.p_print(
-            &#34;The plate does not have the exact image count: expected 2304, got &#34;
-            + str(len(images_full_path_list))
-        )
-        logger.warning(
-            &#34;The plate does not have the exact image count: expected 2304, got &#34;
-            + str(len(images_full_path_list))
-        )
 
     logger.info(
         &#34;Start plate image generation for channel: &#34;
@@ -119,73 +104,20 @@ def generate_plate_image_for_channel(
         + str(channel_label)
     )
 
-    # Get the filenames list
-    images_full_path_list.sort()
-    images_filename_list = [str(x.name) for x in images_full_path_list]
-
-    # Get the well list
-    image_well_list = [x.split(&#34;_&#34;)[1].split(&#34;_T&#34;)[0]
-                       for x in images_filename_list]
-
-    # Get the siteid list (sitesid from 1 to 6)
-    image_site_list = [
-        x.split(&#34;_T0001F&#34;)[1].split(&#34;L&#34;)[0] for x in images_filename_list
-    ]
-    image_site_list_int = [int(x) for x in image_site_list]
-
-    # Zip all in a data structure
-    image_data_zip = zip(
-        image_well_list,
-        image_site_list_int,
-        images_filename_list,
-        images_full_path_list,
-    )
-
-    # Convert the zip into dataframe
-    data_df = pd.DataFrame(
-        list(image_data_zip), columns=[&#34;well&#34;, &#34;site&#34;, &#34;filename&#34;, &#34;fullpath&#34;]
-    )
-
-    # Get the theoretical well list for 384 well plate
-    well_theoretical_list = [
-        # e.g. &#34;A01&#34;
-        l + str(r).zfill(2) for l in &#34;ABCDEFGHIJKLMNOP&#34; for r in range(1, 25)
-    ]
-    well_site_theoretical_list = [
-        # e.g. [&#34;A01&#34;, 1] .. [&#34;A01&#34;, 6]
-        [x, r] for x in well_theoretical_list for r in range(1, 7)
-    ]
-
-    # Create the theoretical well dataframe
-    theoretical_data_df = pd.DataFrame(
-        well_site_theoretical_list, columns=[&#34;well&#34;, &#34;site&#34;]
-    )
-
-    # Join the real wells with the theoric ones
-    data_df_joined = theoretical_data_df.merge(
-        data_df,
-        left_on=[&#34;well&#34;, &#34;site&#34;],
-        right_on=[&#34;well&#34;, &#34;site&#34;],
-        how=&#34;left&#34;,
-    )
-
-    # Log if there is a delta between theory and actual plate wells
-    delta = set(well_theoretical_list) - set(image_well_list)
-    logger.debug(&#34;Well Delta &#34; + str(delta))
-
     # Get the site images and store them locally
     logger.info(&#34;Copying sources images in temp folder..&#34;)
 
-    copyprogressbar = tqdm(
-        data_df_joined.iterrows(),
-        total=len(data_df_joined),
+    copy_progressbar = tqdm(
+        image_df.iterrows(),
+        total=len(image_df),
         desc=&#34;Download images to temp&#34;,
         unit=&#34;images&#34;,
         colour=&#34;blue&#34; if platform.system() == &#39;Windows&#39; else &#34;#006464&#34;,
         leave=True,
-        disable=logger.IS_IN_PARALLEL,
+        disable=logger.PARALLELISM or not logger.ENABLED,
+        # ascii=True, # Use this if Windows gives encoding errors when printing to the console
     )
-    for _, current_image in copyprogressbar:
+    for _, current_image in copy_progressbar:
 
         # Do not copy if temp file already exists, or if source file doesn&#39;t exists
         if not os.path.isfile(temp_folder + &#34;/&#34; + str(current_image[&#34;filename&#34;])):
@@ -212,40 +144,41 @@ def generate_plate_image_for_channel(
 
     logger.info(&#34;Copying sources images in temp folder..Done&#34;)
 
-    # Get the list of all the wells
-    # We first convert to a set to remove redundant wells (duplicate data because each is represented 6 times, one per site)
-    well_list = list(set(data_df_joined[&#34;well&#34;]))
-    well_list.sort()
-
     logger.info(&#34;Generating well images and storing them in temp dir..&#34;)
 
+    # Get the list of all the wells in the plate
+    well_list = sorted(image_df[&#34;well&#34;].unique())
+
     # Generate one image per well by concatenation of image sites
-    wellprogressbar = tqdm(
+    well_progressbar = tqdm(
         well_list,
         unit=&#34;wells&#34;,
         colour=&#34;magenta&#34; if platform.system() == &#39;Windows&#39; else &#34;#6464a0&#34;,
         leave=True,
-        disable=logger.IS_IN_PARALLEL,
+        disable=logger.PARALLELISM or not logger.ENABLED,
     )
-    for current_well in wellprogressbar:
-        wellprogressbar.set_description(f&#34;Processing well {current_well}&#34;)
+    for current_well in well_progressbar:
+        well_progressbar.set_description(f&#34;Processing well {current_well}&#34;)
 
-        # Get the 6 images metadata of the well
-        current_wells_df = data_df_joined.loc[data_df_joined[&#34;well&#34;]
-                                              == current_well]
+        # Get the images for each of the well&#39;s sites
+        current_wells_df = image_df.loc[image_df[&#34;well&#34;]
+                                        == current_well]
 
-        # Load 6 wells into an image list (if image cannot be opened, e.g. if it is missing or corrupted, replace with a placeholder image)
+        # Load the sites into an image list (if image cannot be opened, e.g. if it is missing or corrupted, replace with a placeholder image)
         image_list = []
-        for current_site in range(1, 7):
-            img = toolbox.load_site_image(
-                current_site, current_wells_df, temp_folder)
+        for current_site in range(1, image_df[&#34;site&#34;].max()+1):
             try:
+                # Load image
+                img = toolbox.load_site_image(
+                    current_site, current_wells_df, temp_folder)
+                # Check that the image loaded successfully
+                assert (img is not None) and (img.shape != (0, 0))
                 # Resize the image first to reduce computations
                 img = cv2.resize(
                     src=img,
                     dsize=None,
-                    fx=parameters.rescale_ratio,
-                    fy=parameters.rescale_ratio,
+                    fx=get_config()[&#39;rescale_ratio_qc&#39;],
+                    fy=get_config()[&#39;rescale_ratio_qc&#39;],
                     interpolation=cv2.INTER_CUBIC,
                 )
                 # Convert to 8 bit
@@ -253,55 +186,61 @@ def generate_plate_image_for_channel(
                 img = img.astype(&#34;uint8&#34;)
                 # Normalize the intensity of each channel by a specific coefficient
                 # Create a mask to check when value will overflow
-                intensity_coef = parameters.channel_coefficients[channel_to_render]
+                intensity_coef = get_config(
+                )[&#39;channel_info&#39;][channel_to_render][&#39;qc_coef&#39;]
                 mask = (img &gt; (255 / intensity_coef)
                         ) if intensity_coef != 0 else False
                 # Clip the result to be in [0;255] if overflow
                 img = np.where(mask, 255, img * intensity_coef)
 
             except:
-                # Create placeholder image when error
-                img = np.full(
-                    shape=(int(1000*parameters.rescale_ratio),
-                           int(1000*parameters.rescale_ratio), 1),
-                    fill_value=parameters.placeholder_background_intensity,
-                    dtype=np.uint8
-                )
-                img = toolbox.draw_markers(
-                    img, parameters.placeholder_markers_intensity)
                 logger.warning(&#34;Missing or corrupted file in well &#34; +
                                current_well + &#34; (site &#34; + str(current_site) + &#34;)&#34;)
 
+                # Create placeholder image if an error occurs
+                height = int(get_config()[&#39;image_dimensions&#39;].split(
+                    &#39;x&#39;, maxsplit=1)[0])
+                width = int(get_config()[&#39;image_dimensions&#39;].rsplit(
+                    &#39;x&#39;, maxsplit=1)[-1])
+                img = np.full(
+                    shape=(int(height*get_config()[&#39;rescale_ratio_qc&#39;]),
+                           int(width*get_config()[&#39;rescale_ratio_qc&#39;]), 1),
+                    fill_value=get_config()[
+                        &#39;placeholder_background_intensity&#39;],
+                    dtype=np.uint8
+                )
+                img = toolbox.draw_markers(
+                    img, get_config()[&#39;placeholder_markers_intensity&#39;])
+
             image_list.append(img)
 
-        # Concatenate horizontally and vertically
-        sites_row1 = cv2.hconcat(
-            [image_list[0], image_list[1], image_list[2]]
-        )
-        sites_row2 = cv2.hconcat(
-            [image_list[3], image_list[4], image_list[5]]
-        )
-        all_sites_image = cv2.vconcat([sites_row1, sites_row2])
+        # Concatenate the site images horizontally and vertically
+        nb_site_row = int(get_config()[&#39;site_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+        nb_site_col = int(
+            get_config()[&#39;site_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
+
+        well_image = toolbox.concatenate_images_in_grid(
+            image_list, nb_site_row, nb_site_col)
 
         # Add well id on image
         text = current_well + &#34; &#34; + channel_label
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(
-            all_sites_image,
+            well_image,
             text,
-            (math.ceil(25*parameters.rescale_ratio),
-             math.ceil(125*parameters.rescale_ratio)),
+            (math.ceil(25*get_config()[&#39;rescale_ratio_qc&#39;]),
+             math.ceil(125*get_config()[&#39;rescale_ratio_qc&#39;])),
             font,
-            4*parameters.rescale_ratio,
+            4*get_config()[&#39;rescale_ratio_qc&#39;],
             (192, 192, 192),
-            math.ceil(8*parameters.rescale_ratio),
+            math.ceil(8*get_config()[&#39;rescale_ratio_qc&#39;]),
             cv2.INTER_AREA,
         )
 
         # Add well marks on borders
-        image_shape = all_sites_image.shape
+        image_shape = well_image.shape
         cv2.rectangle(
-            all_sites_image,
+            well_image,
             (0, 0),
             (image_shape[1], image_shape[0]),
             color=(192, 192, 192),
@@ -311,7 +250,7 @@ def generate_plate_image_for_channel(
         # Save the image in the temp folder
         cv2.imwrite(
             temp_folder + f&#34;/wells/well-{current_well}.{output_format}&#34;,
-            all_sites_image,
+            well_image,
         )
 
     logger.info(&#34;Generating well images and storing them in temp dir..Done&#34;)
@@ -320,30 +259,26 @@ def generate_plate_image_for_channel(
     logger.p_print(&#34;Combining well images into final channel image..&#34;)
     logger.info(&#34;Loading well images from temp dir..&#34;)
 
-    image_well_data = []
+    well_images = []
     for current_well in list(well_list):
         well_image = toolbox.load_well_image(
             current_well,
             temp_folder + &#34;/wells&#34;,
             output_format,
         )
-        image_well_data.append(well_image)
+        well_images.append(well_image)
 
     logger.info(&#34;Loading well images from temp dir..Done&#34;)
 
     # Concatenate the well images horizontally and vertically
     logger.info(&#34;Concatenating well images into a plate..&#34;)
 
-    image_row_data = []
-    for current_plate_row in range(1, 17):
-        # Concatenate all the well images into horizontal stripes (1 per row)
-        well_start_id = ((current_plate_row - 1) * 24) + 0
-        well_end_id = current_plate_row * 24
-        sites_row = cv2.hconcat(image_well_data[well_start_id:well_end_id])
-        image_row_data.append(sites_row)
+    # Concatenate all the well images into one plate image
+    nb_well_row = int(get_config()[&#39;well_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+    nb_well_col = int(get_config()[&#39;well_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
 
-    # Concatenate all the stripes into 1 image
-    plate_image = cv2.vconcat(image_row_data)
+    plate_image = toolbox.concatenate_images_in_grid(
+        well_images, nb_well_row, nb_well_col)
 
     logger.info(&#34;Concatenating well images into a plate..Done&#34;)
 
@@ -385,12 +320,20 @@ def render_single_channel_plateview(
         output_format,
         keep_temp_files
     )
+
+    if plate_image is None:
+        logger.err_print(&#34;ERROR: Generated image is empty. This should not happen.&#34;,
+                         color=&#39;bright_red&#39;)
+        sys.exit(1)
+
     logger.p_print(&#34; -&gt; Generated image of size: &#34; + str(plate_image.shape))
 
     # Save image
     plate_image_path = (
         output_path
-        + f&#34;/{plate_name}-{channel_to_render}-{parameters.channel_coefficients[channel_to_render]}.{output_format}&#34;
+        + f&#34;/{plate_name}-{channel_to_render}-&#34;
+        + f&#34;{get_config()[&#39;channel_info&#39;][channel_to_render][&#39;qc_coef&#39;]}&#34;
+        + f&#34;.{output_format}&#34;
     )
     cv2.imwrite(plate_image_path, plate_image)
     logger.p_print(&#34; -&gt; Saved as &#34; + plate_image_path)
@@ -426,9 +369,10 @@ def render_single_plate_plateview(
         desc=&#34;Render plate channels&#34;,
         unit=&#34;channel&#34;,
         colour=&#34;green&#34; if platform.system() == &#39;Windows&#39; else &#34;#00ff00&#34;,
+        disable=logger.PARALLELISM or not logger.ENABLED,
     ):
         # Get the current channel&#39;s label
-        channel_label = parameters.cellpainting_channels_dict[current_channel]
+        channel_label = get_config()[&#39;channel_info&#39;][current_channel][&#39;name&#39;]
 
         logger.p_print(os.linesep)
         logger.p_print(&#34;Generate &#34; + current_channel +
@@ -479,7 +423,8 @@ def render_single_plate_plateview_parallelism(
     try:
         for current_channel in channel_list:
             # Get the current channel&#39;s label
-            channel_label = parameters.cellpainting_channels_dict[current_channel]
+            channel_label = get_config(
+            )[&#39;channel_info&#39;][current_channel][&#39;name&#39;]
 
             pool.apply_async(render_single_channel_plateview, args=(
                 source_path,
@@ -526,15 +471,16 @@ def render_single_run_plateview(
             Returns:
                     True (in case of success)
     &#39;&#39;&#39;
-    runprogressbar = tqdm(
+    run_progressbar = tqdm(
         source_folder_dict.keys(),
         total=len(source_folder_dict),
         desc=&#34;Run progress&#34;,
         unit=&#34;plates&#34;,
         colour=&#39;cyan&#39; if platform.system() == &#39;Windows&#39; else &#34;#0AAFAF&#34;,
         leave=True,
+        disable=not logger.ENABLED,
     )
-    for current_plate in runprogressbar:
+    for current_plate in run_progressbar:
         # Render all the channels of the plate
         if parallelism == 1:
             render_single_plate_plateview(
@@ -571,7 +517,7 @@ def render_single_run_plateview(
 <h2 class="section-title" id="header-functions">Functions</h2>
 <dl>
 <dt id="lumos.generator.generate_plate_image_for_channel"><code class="name flex">
-<span>def <span class="ident">generate_plate_image_for_channel</span></span>(<span>plate_input_path_string, plate_name, channel_to_render, channel_label, temp_folder, output_format, keep_temp_files)</span>
+<span>def <span class="ident">generate_plate_image_for_channel</span></span>(<span>plate_input_path, plate_name, channel_to_render, channel_label, temp_folder, output_format, keep_temp_files)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>Generates an image of a cellpainting plate for a specific channel.</p>
@@ -592,7 +538,7 @@ def render_single_run_plateview(
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def generate_plate_image_for_channel(
-    plate_input_path_string,
+    plate_input_path,
     plate_name,
     channel_to_render,
     channel_label,
@@ -617,13 +563,13 @@ def render_single_run_plateview(
     &#39;&#39;&#39;
 
     # Define a temp folder for the run
-    temp_folder = temp_folder + &#34;/lumos-tmpgen-&#34; + plate_name + channel_to_render
+    temp_folder = temp_folder + &#34;/lumos-tmpgen-&#34; + \
+        plate_name + &#39;-&#39; + channel_to_render
 
     # Remove temp dir if existing
     if not keep_temp_files:
         logger.debug(&#34;Purge temporary folder before plate generation&#34;)
         shutil.rmtree(temp_folder, ignore_errors=True)
-
     # Create the temporary directory structure to work on images
     try:
         os.mkdir(temp_folder)
@@ -631,26 +577,11 @@ def render_single_run_plateview(
     except FileExistsError:
         pass
 
-    # Read the plate input path
-    plate_input_path = Path(plate_input_path_string)
-
-    # Get the files from the plate folder, for the targeted channel
-    images_full_path_list = list(
-        Path(plate_input_path).glob(&#34;*&#34; + channel_to_render + &#34;.tif&#34;)
+    # Build a Table of the available images of the plate for the selected channel
+    image_df = toolbox.build_input_images_df(
+        plate_input_path,
+        [channel_to_render],
     )
-
-    # Check that we get 2304 images for a 384 well image
-    try:
-        assert len(images_full_path_list) == 2304
-    except AssertionError:
-        logger.p_print(
-            &#34;The plate does not have the exact image count: expected 2304, got &#34;
-            + str(len(images_full_path_list))
-        )
-        logger.warning(
-            &#34;The plate does not have the exact image count: expected 2304, got &#34;
-            + str(len(images_full_path_list))
-        )
 
     logger.info(
         &#34;Start plate image generation for channel: &#34;
@@ -659,73 +590,20 @@ def render_single_run_plateview(
         + str(channel_label)
     )
 
-    # Get the filenames list
-    images_full_path_list.sort()
-    images_filename_list = [str(x.name) for x in images_full_path_list]
-
-    # Get the well list
-    image_well_list = [x.split(&#34;_&#34;)[1].split(&#34;_T&#34;)[0]
-                       for x in images_filename_list]
-
-    # Get the siteid list (sitesid from 1 to 6)
-    image_site_list = [
-        x.split(&#34;_T0001F&#34;)[1].split(&#34;L&#34;)[0] for x in images_filename_list
-    ]
-    image_site_list_int = [int(x) for x in image_site_list]
-
-    # Zip all in a data structure
-    image_data_zip = zip(
-        image_well_list,
-        image_site_list_int,
-        images_filename_list,
-        images_full_path_list,
-    )
-
-    # Convert the zip into dataframe
-    data_df = pd.DataFrame(
-        list(image_data_zip), columns=[&#34;well&#34;, &#34;site&#34;, &#34;filename&#34;, &#34;fullpath&#34;]
-    )
-
-    # Get the theoretical well list for 384 well plate
-    well_theoretical_list = [
-        # e.g. &#34;A01&#34;
-        l + str(r).zfill(2) for l in &#34;ABCDEFGHIJKLMNOP&#34; for r in range(1, 25)
-    ]
-    well_site_theoretical_list = [
-        # e.g. [&#34;A01&#34;, 1] .. [&#34;A01&#34;, 6]
-        [x, r] for x in well_theoretical_list for r in range(1, 7)
-    ]
-
-    # Create the theoretical well dataframe
-    theoretical_data_df = pd.DataFrame(
-        well_site_theoretical_list, columns=[&#34;well&#34;, &#34;site&#34;]
-    )
-
-    # Join the real wells with the theoric ones
-    data_df_joined = theoretical_data_df.merge(
-        data_df,
-        left_on=[&#34;well&#34;, &#34;site&#34;],
-        right_on=[&#34;well&#34;, &#34;site&#34;],
-        how=&#34;left&#34;,
-    )
-
-    # Log if there is a delta between theory and actual plate wells
-    delta = set(well_theoretical_list) - set(image_well_list)
-    logger.debug(&#34;Well Delta &#34; + str(delta))
-
     # Get the site images and store them locally
     logger.info(&#34;Copying sources images in temp folder..&#34;)
 
-    copyprogressbar = tqdm(
-        data_df_joined.iterrows(),
-        total=len(data_df_joined),
+    copy_progressbar = tqdm(
+        image_df.iterrows(),
+        total=len(image_df),
         desc=&#34;Download images to temp&#34;,
         unit=&#34;images&#34;,
         colour=&#34;blue&#34; if platform.system() == &#39;Windows&#39; else &#34;#006464&#34;,
         leave=True,
-        disable=logger.IS_IN_PARALLEL,
+        disable=logger.PARALLELISM or not logger.ENABLED,
+        # ascii=True, # Use this if Windows gives encoding errors when printing to the console
     )
-    for _, current_image in copyprogressbar:
+    for _, current_image in copy_progressbar:
 
         # Do not copy if temp file already exists, or if source file doesn&#39;t exists
         if not os.path.isfile(temp_folder + &#34;/&#34; + str(current_image[&#34;filename&#34;])):
@@ -752,40 +630,41 @@ def render_single_run_plateview(
 
     logger.info(&#34;Copying sources images in temp folder..Done&#34;)
 
-    # Get the list of all the wells
-    # We first convert to a set to remove redundant wells (duplicate data because each is represented 6 times, one per site)
-    well_list = list(set(data_df_joined[&#34;well&#34;]))
-    well_list.sort()
-
     logger.info(&#34;Generating well images and storing them in temp dir..&#34;)
 
+    # Get the list of all the wells in the plate
+    well_list = sorted(image_df[&#34;well&#34;].unique())
+
     # Generate one image per well by concatenation of image sites
-    wellprogressbar = tqdm(
+    well_progressbar = tqdm(
         well_list,
         unit=&#34;wells&#34;,
         colour=&#34;magenta&#34; if platform.system() == &#39;Windows&#39; else &#34;#6464a0&#34;,
         leave=True,
-        disable=logger.IS_IN_PARALLEL,
+        disable=logger.PARALLELISM or not logger.ENABLED,
     )
-    for current_well in wellprogressbar:
-        wellprogressbar.set_description(f&#34;Processing well {current_well}&#34;)
+    for current_well in well_progressbar:
+        well_progressbar.set_description(f&#34;Processing well {current_well}&#34;)
 
-        # Get the 6 images metadata of the well
-        current_wells_df = data_df_joined.loc[data_df_joined[&#34;well&#34;]
-                                              == current_well]
+        # Get the images for each of the well&#39;s sites
+        current_wells_df = image_df.loc[image_df[&#34;well&#34;]
+                                        == current_well]
 
-        # Load 6 wells into an image list (if image cannot be opened, e.g. if it is missing or corrupted, replace with a placeholder image)
+        # Load the sites into an image list (if image cannot be opened, e.g. if it is missing or corrupted, replace with a placeholder image)
         image_list = []
-        for current_site in range(1, 7):
-            img = toolbox.load_site_image(
-                current_site, current_wells_df, temp_folder)
+        for current_site in range(1, image_df[&#34;site&#34;].max()+1):
             try:
+                # Load image
+                img = toolbox.load_site_image(
+                    current_site, current_wells_df, temp_folder)
+                # Check that the image loaded successfully
+                assert (img is not None) and (img.shape != (0, 0))
                 # Resize the image first to reduce computations
                 img = cv2.resize(
                     src=img,
                     dsize=None,
-                    fx=parameters.rescale_ratio,
-                    fy=parameters.rescale_ratio,
+                    fx=get_config()[&#39;rescale_ratio_qc&#39;],
+                    fy=get_config()[&#39;rescale_ratio_qc&#39;],
                     interpolation=cv2.INTER_CUBIC,
                 )
                 # Convert to 8 bit
@@ -793,55 +672,61 @@ def render_single_run_plateview(
                 img = img.astype(&#34;uint8&#34;)
                 # Normalize the intensity of each channel by a specific coefficient
                 # Create a mask to check when value will overflow
-                intensity_coef = parameters.channel_coefficients[channel_to_render]
+                intensity_coef = get_config(
+                )[&#39;channel_info&#39;][channel_to_render][&#39;qc_coef&#39;]
                 mask = (img &gt; (255 / intensity_coef)
                         ) if intensity_coef != 0 else False
                 # Clip the result to be in [0;255] if overflow
                 img = np.where(mask, 255, img * intensity_coef)
 
             except:
-                # Create placeholder image when error
-                img = np.full(
-                    shape=(int(1000*parameters.rescale_ratio),
-                           int(1000*parameters.rescale_ratio), 1),
-                    fill_value=parameters.placeholder_background_intensity,
-                    dtype=np.uint8
-                )
-                img = toolbox.draw_markers(
-                    img, parameters.placeholder_markers_intensity)
                 logger.warning(&#34;Missing or corrupted file in well &#34; +
                                current_well + &#34; (site &#34; + str(current_site) + &#34;)&#34;)
 
+                # Create placeholder image if an error occurs
+                height = int(get_config()[&#39;image_dimensions&#39;].split(
+                    &#39;x&#39;, maxsplit=1)[0])
+                width = int(get_config()[&#39;image_dimensions&#39;].rsplit(
+                    &#39;x&#39;, maxsplit=1)[-1])
+                img = np.full(
+                    shape=(int(height*get_config()[&#39;rescale_ratio_qc&#39;]),
+                           int(width*get_config()[&#39;rescale_ratio_qc&#39;]), 1),
+                    fill_value=get_config()[
+                        &#39;placeholder_background_intensity&#39;],
+                    dtype=np.uint8
+                )
+                img = toolbox.draw_markers(
+                    img, get_config()[&#39;placeholder_markers_intensity&#39;])
+
             image_list.append(img)
 
-        # Concatenate horizontally and vertically
-        sites_row1 = cv2.hconcat(
-            [image_list[0], image_list[1], image_list[2]]
-        )
-        sites_row2 = cv2.hconcat(
-            [image_list[3], image_list[4], image_list[5]]
-        )
-        all_sites_image = cv2.vconcat([sites_row1, sites_row2])
+        # Concatenate the site images horizontally and vertically
+        nb_site_row = int(get_config()[&#39;site_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+        nb_site_col = int(
+            get_config()[&#39;site_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
+
+        well_image = toolbox.concatenate_images_in_grid(
+            image_list, nb_site_row, nb_site_col)
 
         # Add well id on image
         text = current_well + &#34; &#34; + channel_label
         font = cv2.FONT_HERSHEY_SIMPLEX
         cv2.putText(
-            all_sites_image,
+            well_image,
             text,
-            (math.ceil(25*parameters.rescale_ratio),
-             math.ceil(125*parameters.rescale_ratio)),
+            (math.ceil(25*get_config()[&#39;rescale_ratio_qc&#39;]),
+             math.ceil(125*get_config()[&#39;rescale_ratio_qc&#39;])),
             font,
-            4*parameters.rescale_ratio,
+            4*get_config()[&#39;rescale_ratio_qc&#39;],
             (192, 192, 192),
-            math.ceil(8*parameters.rescale_ratio),
+            math.ceil(8*get_config()[&#39;rescale_ratio_qc&#39;]),
             cv2.INTER_AREA,
         )
 
         # Add well marks on borders
-        image_shape = all_sites_image.shape
+        image_shape = well_image.shape
         cv2.rectangle(
-            all_sites_image,
+            well_image,
             (0, 0),
             (image_shape[1], image_shape[0]),
             color=(192, 192, 192),
@@ -851,7 +736,7 @@ def render_single_run_plateview(
         # Save the image in the temp folder
         cv2.imwrite(
             temp_folder + f&#34;/wells/well-{current_well}.{output_format}&#34;,
-            all_sites_image,
+            well_image,
         )
 
     logger.info(&#34;Generating well images and storing them in temp dir..Done&#34;)
@@ -860,30 +745,26 @@ def render_single_run_plateview(
     logger.p_print(&#34;Combining well images into final channel image..&#34;)
     logger.info(&#34;Loading well images from temp dir..&#34;)
 
-    image_well_data = []
+    well_images = []
     for current_well in list(well_list):
         well_image = toolbox.load_well_image(
             current_well,
             temp_folder + &#34;/wells&#34;,
             output_format,
         )
-        image_well_data.append(well_image)
+        well_images.append(well_image)
 
     logger.info(&#34;Loading well images from temp dir..Done&#34;)
 
     # Concatenate the well images horizontally and vertically
     logger.info(&#34;Concatenating well images into a plate..&#34;)
 
-    image_row_data = []
-    for current_plate_row in range(1, 17):
-        # Concatenate all the well images into horizontal stripes (1 per row)
-        well_start_id = ((current_plate_row - 1) * 24) + 0
-        well_end_id = current_plate_row * 24
-        sites_row = cv2.hconcat(image_well_data[well_start_id:well_end_id])
-        image_row_data.append(sites_row)
+    # Concatenate all the well images into one plate image
+    nb_well_row = int(get_config()[&#39;well_grid&#39;].split(&#39;x&#39;, maxsplit=1)[0])
+    nb_well_col = int(get_config()[&#39;well_grid&#39;].rsplit(&#39;x&#39;, maxsplit=1)[-1])
 
-    # Concatenate all the stripes into 1 image
-    plate_image = cv2.vconcat(image_row_data)
+    plate_image = toolbox.concatenate_images_in_grid(
+        well_images, nb_well_row, nb_well_col)
 
     logger.info(&#34;Concatenating well images into a plate..Done&#34;)
 
@@ -947,12 +828,20 @@ def render_single_run_plateview(
         output_format,
         keep_temp_files
     )
+
+    if plate_image is None:
+        logger.err_print(&#34;ERROR: Generated image is empty. This should not happen.&#34;,
+                         color=&#39;bright_red&#39;)
+        sys.exit(1)
+
     logger.p_print(&#34; -&gt; Generated image of size: &#34; + str(plate_image.shape))
 
     # Save image
     plate_image_path = (
         output_path
-        + f&#34;/{plate_name}-{channel_to_render}-{parameters.channel_coefficients[channel_to_render]}.{output_format}&#34;
+        + f&#34;/{plate_name}-{channel_to_render}-&#34;
+        + f&#34;{get_config()[&#39;channel_info&#39;][channel_to_render][&#39;qc_coef&#39;]}&#34;
+        + f&#34;.{output_format}&#34;
     )
     cv2.imwrite(plate_image_path, plate_image)
     logger.p_print(&#34; -&gt; Saved as &#34; + plate_image_path)</code></pre>
@@ -1009,9 +898,10 @@ def render_single_run_plateview(
         desc=&#34;Render plate channels&#34;,
         unit=&#34;channel&#34;,
         colour=&#34;green&#34; if platform.system() == &#39;Windows&#39; else &#34;#00ff00&#34;,
+        disable=logger.PARALLELISM or not logger.ENABLED,
     ):
         # Get the current channel&#39;s label
-        channel_label = parameters.cellpainting_channels_dict[current_channel]
+        channel_label = get_config()[&#39;channel_info&#39;][current_channel][&#39;name&#39;]
 
         logger.p_print(os.linesep)
         logger.p_print(&#34;Generate &#34; + current_channel +
@@ -1084,7 +974,8 @@ def render_single_run_plateview(
     try:
         for current_channel in channel_list:
             # Get the current channel&#39;s label
-            channel_label = parameters.cellpainting_channels_dict[current_channel]
+            channel_label = get_config(
+            )[&#39;channel_info&#39;][current_channel][&#39;name&#39;]
 
             pool.apply_async(render_single_channel_plateview, args=(
                 source_path,
@@ -1152,15 +1043,16 @@ def render_single_run_plateview(
             Returns:
                     True (in case of success)
     &#39;&#39;&#39;
-    runprogressbar = tqdm(
+    run_progressbar = tqdm(
         source_folder_dict.keys(),
         total=len(source_folder_dict),
         desc=&#34;Run progress&#34;,
         unit=&#34;plates&#34;,
         colour=&#39;cyan&#39; if platform.system() == &#39;Windows&#39; else &#34;#0AAFAF&#34;,
         leave=True,
+        disable=not logger.ENABLED,
     )
-    for current_plate in runprogressbar:
+    for current_plate in run_progressbar:
         # Render all the channels of the plate
         if parallelism == 1:
             render_single_plate_plateview(
