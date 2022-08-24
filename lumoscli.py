@@ -483,7 +483,6 @@ def cell_painting(scope, single_well, source_path, output_path, temp_path, plate
                   'classic' else list(get_config()['channel_info'].keys())[:5])
         )
     elif scope != 'plate':
-        single_well = single_well.upper()
         click.echo(
             "Process well "
             + single_well
