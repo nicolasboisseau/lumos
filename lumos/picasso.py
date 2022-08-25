@@ -504,15 +504,22 @@ def picasso_generate_plate_image(
     well_list = sorted(data_df["well"].unique())
 
     # Handle the single-well request
-    if single_well and single_well not in well_list:
-        logger.error("Single-well parameter not a valid well")
-        logger.err_print(f"ERROR: {single_well} is not a valid well.",
-                         color='bright_red')
-        sys.exit(1)
-    elif single_well:
-        # Override the list of wells to be rendered
-        # with the single well
-        well_list = [single_well]
+    if single_well:
+        if single_well in well_list:
+            # Override the list of wells to be rendered
+            # with the single well
+            well_list = [single_well]
+        elif single_well.upper() in well_list:
+            # Also accept if the well was not written in uppercase
+            well_list = [single_well.upper()]
+        elif single_well.lower() in well_list:
+            # Also accept if the well was not written in lowercase
+            well_list = [single_well.lower()]
+        else:
+            logger.error("Single-well parameter not a valid well")
+            logger.err_print(f"ERROR: {single_well} is not a valid well.",
+                             color='bright_red')
+            sys.exit(1)
 
     # Generate the Cell-painted well images
     generate_multiplexed_well_images(
