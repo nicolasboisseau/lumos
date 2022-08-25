@@ -294,7 +294,8 @@ def generate_multiplexed_well_images(
         rescale_ratio = 1
 
     # Multiplex all well/site channels into 1 well/site 8bit colored image
-    well_progressbar = tqdm(well_list, unit="wells", leave=False, disable=not logger.ENABLED)
+    well_progressbar = tqdm(well_list, unit="wells",
+                            leave=False, disable=not logger.ENABLED)
     for current_well in well_progressbar:
         # For each well, generate the multiplexed images of its 6 sites
         current_well_sites_multiplexed_image_list = []
@@ -511,9 +512,8 @@ def picasso_generate_plate_image(
         else:
             logger.error("Single-well parameter not a valid well")
             logger.err_print(f"ERROR: {single_well} is not a valid well.",
-                            color='bright_red')
+                             color='bright_red')
             sys.exit(1)
-            
 
     # Generate the Cell-painted well images
     generate_multiplexed_well_images(
