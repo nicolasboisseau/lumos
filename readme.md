@@ -1,15 +1,10 @@
 # :microscope: Lumos
 
-> The Carpenter lab and Schreiber lab at the Broad Institute of MIT and Harvard developed Cell Painting, a microscopy assay that generates images that reflect cell response to treatments such as drug or genetic perturbations.
->
-> *From: [jump-cellpainting.broadinstitute.org/cell-painting](https://jump-cellpainting.broadinstitute.org/cell-painting)*
-
-Lumos is a program that generates full-plate images from separate sites pictures obtained through the Cell Painting assay.
+Lumos is a program that generates full-plate images from the separate site/field pictures obtained through the Cell Painting assay.
 
 It has 2 operation modes that allow it to render images for specific channels of a plate, as well as colorful images that combine all channels together:
 
-<img src="./docs/readme-qc-channel-4.jpg" alt="Quality Control channel 4 image" width="48%"/>
-<img src="./docs/readme-cp.jpg" alt="Cell Painting image" width="48%"/>
+<img src="./docs/readme-qc-channel-4.jpg" alt="Quality Control channel 4 image" width="49%"/> <img src="./docs/readme-cp.jpg" alt="Cell Painting image" width="49%"/>
 
 </br>
 
@@ -82,11 +77,8 @@ where `<path_to_a_plate_folder>` is a path to the root folder of a plate. In [th
 
 This will generate 1 greyscale image per channel of the plate (excluding brightfield channels) and allow you to check easily that the quality of the images that you have is good:
 
-<img src="./docs/readme-qc-channel-1.jpg" alt="Quality Control channel 1 image" width="30%"/>
-<img src="./docs/readme-qc-channel-2.jpg" alt="Quality Control channel 2 image" width="30%"/>
-<img src="./docs/readme-qc-channel-3.jpg" alt="Quality Control channel 3 image" width="30%"/>
-<img src="./docs/readme-qc-channel-4.jpg" alt="Quality Control channel 4 image" width="30%"/>
-<img src="./docs/readme-qc-channel-5.jpg" alt="Quality Control channel 5 image" width="30%"/>
+<img src="./docs/readme-qc-channel-1.jpg" alt="Quality Control channel 1 image" width="32%"/> <img src="./docs/readme-qc-channel-2.jpg" alt="Quality Control channel 2 image" width="32%"/> <img src="./docs/readme-qc-channel-3.jpg" alt="Quality Control channel 3 image" width="32%"/>
+<img src="./docs/readme-qc-channel-4.jpg" alt="Quality Control channel 4 image" width="32%"/> <img src="./docs/readme-qc-channel-5.jpg" alt="Quality Control channel 5 image" width="32%"/>
 
 > #### Note:
 > We could have also used argument aliases in order to make the command shorter, as follows:
@@ -104,8 +96,7 @@ lumos -cf my_config.yaml cp --scope plate --source-path <path_to_a_plate_folder>
 
 This will generate an image looking similar to this:
 
-<img src="./docs/readme-cp.jpg" alt="Cell Painting image" width="55%"/>
-(zooming in: <img src="./docs/readme-cp-zoom.jpg" alt="Cell Painting image zoom" width="25%"/>)
+<img src="./docs/readme-cp.jpg" alt="Cell Painting image" width="55%"/> (zooming in: <img src="./docs/readme-cp-zoom.jpg" alt="Cell Painting image zoom" width="25%"/>)
 
 > #### Note:
 > To see a list of all available Cell Painting arguments and their aliases, use `lumos cp --help`.
@@ -190,8 +181,6 @@ You can also explore some of our [more detailed examples](#detailed-examples) or
  - ch5
  ```
 
-***
-
 ### Example 1: Generating the image of a specific channel of a plate
 
 To do this, we can use the 'channel' scope with the additional `--channel` argument to select which channel should be rendered by specifying its channel ID. Assuming the above example configuration, to render the channel "ch3" of our plate, we would get:
@@ -204,8 +193,6 @@ And alternatively, using argument aliases, we can use the shorter following comm
 lumos -cf my_config.yaml qc -s channel -c ch3 -sp <path_to_a_plate_folder> -op ./output/
 ```
 
-***
-
 ### Example 2: Generating an image for all channels of a plate, including brightfields
 
 To do this, we can add the `--brightfield` argument to our regular command. With this argument, we can either choose to include a specific Brightfield channel by writing its ID, or include all of them by writing 'all'. In this example, we will do the latter:
@@ -217,8 +204,6 @@ And alternatively, using argument aliases, we can use the shorter following comm
 ```
 lumos -cf my_config.yaml qc -s plate -sp <path_to_a_plate_folder> -op ./output/ -b all
 ```
-
-***
 
 ### Example 3: Generating images for all channels of multiple plates (i.e. a "run")
 
@@ -236,8 +221,6 @@ And alternatively, using argument aliases, we can use the shorter following comm
 lumos -cf my_config.yaml qc -s run -sp <path_to_a_run_folder> -op ./output/
 ```
 
-***
-
 ### Example 4: Generating the Cell Painted image of a specific well in a plate
 
 This can be done using the 'wells' scope of the `cp` mode of Lumos. Then, we can restrict the generation of images to a single well using the `--single-well` argument followed by the well name (e.g. "r03c21"):
@@ -250,5 +233,3 @@ And alternatively, using argument aliases, we can use the shorter following comm
 ```
 lumos -cf my_config.yaml cp -s wells -w r03c21 -sp <path_to_a_plate_folder> -op ./output/
 ```
-
-***
