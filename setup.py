@@ -11,7 +11,7 @@ VERSION_NUMBER = "0.0.0-dev1"
 
 setup(
     # Information of the package
-    name='lumos',
+    name='lumos-test',
     version=VERSION_NUMBER,
     author='DSDM - Institut De Recherches Servier',
     author_email='nicolas.boisseau@servier.com',
