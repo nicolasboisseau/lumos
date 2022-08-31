@@ -30,7 +30,7 @@ Prerequisites:
 Then, **to install Lumos**, choose one of the following:
 - Install Lumos using PIP with: 
   ```
-  pip install lumos
+  pip install lumos-cli
   ```
 - Install Lumos from the source files:
   - Download the source files, either by downloading the ZIP file or cloning the repository.
