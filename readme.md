@@ -1,4 +1,4 @@
-Lumos
+# Lumos
 
 Lumos is a program that generates full-plate images from the separate site/field pictures obtained through the Cell Painting assay.
 
