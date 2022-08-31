@@ -19,7 +19,7 @@ setup(
     description='A cell painting plateviewer',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url='https://github.com/servier-github/jumpcp-aws',
+    url='https://github.com/nicolasboisseau/lumos',
     classifiers=[
         "Programming Language :: Python :: 3.8",
         "Operating System :: OS Independent",
