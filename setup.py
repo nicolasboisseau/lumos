@@ -7,7 +7,7 @@ with open("readme.md", "r", encoding="utf-8") as fh:
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = fh.read()
 
-VERSION_NUMBER = "0.1.1"
+VERSION_NUMBER = "0.1.1-1"
 
 setup(
     # Information of the package
@@ -15,7 +15,7 @@ setup(
     version=VERSION_NUMBER,
     author='DSDM - Institut De Recherches Servier',
     author_email='nicolas.boisseau@servier.com',
-    license='NOLICENCE',
+    license='MIT',
     description='A cell painting plateviewer',
     long_description=long_description,
     long_description_content_type="text/markdown",
