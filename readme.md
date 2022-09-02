@@ -25,7 +25,7 @@ You can also find instructions for developers in [this other documentation](./re
 
 Prerequisites:
 - You need to have Python 3.8 installed on a Windows or Linux machine.
-- You also need to have the raw site images of your plates on your machine.
+- You also need to have the raw site images of your plates on your machine/mounted storage drive.
 
 Then, **to install Lumos**, choose one of the following:
 - Install Lumos using PIP with: 
