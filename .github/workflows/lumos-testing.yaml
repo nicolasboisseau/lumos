@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize]
     paths:
       - '**.py'
+      - '**.yaml'
 
 jobs:
   Lumos-Testing-on-Linux:
