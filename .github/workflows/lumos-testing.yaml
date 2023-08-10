@@ -1,6 +1,8 @@
 name: Lumos Testing
 
 on:
+  push:
+    branches: [ test_python39 ]
   pull_request:
     types: [opened, synchronize]
     paths:
